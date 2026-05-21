@@ -1,0 +1,471 @@
+/* ── App layout ─────────────────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #0d1117;
+  color: #e2e8f0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.app-logo {
+  font-size: 1.5rem;
+}
+
+.app-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #f0f6fc;
+  margin: 0;
+}
+
+.app-subtitle {
+  font-size: 0.75rem;
+  color: #8b949e;
+  margin-left: auto;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.scene-container {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: #161b22;
+  border-left: 1px solid #30363d;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.7rem 0.5rem;
+  background: transparent;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: color 0.2s, background 0.2s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.tab-btn:hover {
+  color: #c9d1d9;
+  background: #21262d;
+}
+
+.tab-btn.tab-active {
+  color: #58a6ff;
+  border-bottom: 2px solid #58a6ff;
+  background: #0d1117;
+}
+
+.fault-badge {
+  background: #e17055;
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.05rem 0.38rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.tab-panel {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+/* ── Shared tab content styles ──────────────────────────────────────────── */
+.tab-content {
+  padding: 1rem;
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f0f6fc;
+  margin: 0 0 0.25rem;
+}
+
+.section-hint {
+  font-size: 0.75rem;
+  color: #8b949e;
+  margin: 0 0 1rem;
+}
+
+/* ── Systems tab ────────────────────────────────────────────────────────── */
+.subsystem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.subsystem-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: #c9d1d9;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.subsystem-btn:hover {
+  background: #2d333b;
+  border-color: var(--sys-color, #58a6ff);
+}
+
+.subsystem-btn.active {
+  background: #1c2128;
+  border-color: var(--sys-color, #58a6ff);
+  color: #f0f6fc;
+}
+
+.sys-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sys-color, #636e72);
+  flex-shrink: 0;
+}
+
+.subsystem-detail {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  border-left: 3px solid #58a6ff;
+  padding-left: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.detail-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.close-btn:hover {
+  color: #f0f6fc;
+  background: #30363d;
+}
+
+.detail-desc {
+  font-size: 0.8rem;
+  color: #8b949e;
+  line-height: 1.55;
+  margin: 0 0 0.8rem;
+}
+
+.action-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 0.55rem 0.6rem;
+  background: #2d333b;
+  border: 1px solid #444c56;
+  border-radius: 8px;
+  color: #c9d1d9;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #373e47;
+  border-color: #58a6ff;
+}
+
+.action-btn.active-action {
+  background: #1f6feb;
+  border-color: #388bfd;
+  color: #fff;
+}
+
+.mesh-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.mesh-list-label {
+  font-size: 0.7rem;
+  color: #8b949e;
+  margin-right: 0.15rem;
+}
+
+.mesh-tag {
+  background: #2d333b;
+  border: 1px solid #444c56;
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.68rem;
+  color: #8b949e;
+  text-transform: capitalize;
+}
+
+/* ── Faults tab ─────────────────────────────────────────────────────────── */
+.fault-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.fault-card {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 0.75rem;
+  transition: border-color 0.2s;
+}
+
+.fault-card.fault-active {
+  border-color: var(--fault-color, #e17055);
+  background: #1c1a18;
+}
+
+.fault-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.fault-severity {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.fault-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #f0f6fc;
+  flex: 1;
+}
+
+.fault-dtc {
+  font-size: 0.68rem;
+  color: #8b949e;
+  font-family: monospace;
+  background: #2d333b;
+  border-radius: 3px;
+  padding: 0.1rem 0.35rem;
+}
+
+.fault-toggle {
+  padding: 0.25rem 0.65rem;
+  border-radius: 5px;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.fault-toggle.off {
+  background: #30363d;
+  color: #8b949e;
+}
+
+.fault-toggle.on {
+  background: var(--fault-color, #e17055);
+  color: #fff;
+}
+
+.fault-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fault-subsystem-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  flex-shrink: 0;
+}
+
+.fault-short-desc {
+  font-size: 0.75rem;
+  color: #8b949e;
+}
+
+.fault-explanation {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #30363d;
+  font-size: 0.77rem;
+  color: #8b949e;
+  line-height: 1.55;
+}
+
+.fault-explanation p {
+  margin: 0 0 0.4rem;
+}
+
+.fault-affected {
+  color: #8b949e;
+  font-size: 0.73rem;
+}
+
+.fault-affected strong {
+  color: var(--fault-color, #e17055);
+  text-transform: capitalize;
+}
+
+.clear-faults-btn {
+  width: 100%;
+  padding: 0.65rem;
+  background: #2d333b;
+  border: 1px solid #444c56;
+  border-radius: 8px;
+  color: #e17055;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.clear-faults-btn:hover {
+  background: #3a2323;
+  border-color: #e17055;
+}
+
+/* ── Info tab ───────────────────────────────────────────────────────────── */
+.info-card {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 0.9rem;
+  margin-bottom: 0.7rem;
+}
+
+.info-card h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #58a6ff;
+  margin: 0 0 0.5rem;
+}
+
+.info-card p {
+  font-size: 0.78rem;
+  color: #8b949e;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.info-list li {
+  font-size: 0.78rem;
+  color: #8b949e;
+  line-height: 1.5;
+}
+
+.info-list strong {
+  color: #c9d1d9;
+}
+
+.info-list em {
+  color: #79c0ff;
+  font-style: normal;
+}
+
+.info-footer p {
+  font-size: 0.7rem;
+  color: #6e7681;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .sidebar {
+    width: 100%;
+    height: 42vh;
+    border-left: none;
+    border-top: 1px solid #30363d;
+  }
+
+  .app-body {
+    flex-direction: column;
+  }
+
+  .app-subtitle {
+    display: none;
+  }
+}
