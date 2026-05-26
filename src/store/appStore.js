@@ -6,7 +6,7 @@ import { create } from 'zustand';
 
 const useAppStore = create((set) => ({
   // ── Navigation ────────────────────────────────────────────────
-  activeTab: 'systems', // 'systems' | 'faults' | 'info'
+  activeTab: 'systems', // 'systems' | 'parts' | 'faults' | 'info'
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   // ── Subsystem selection ───────────────────────────────────────
@@ -15,7 +15,17 @@ const useAppStore = create((set) => ({
     set((state) => ({
       selectedSubsystem: state.selectedSubsystem === id ? null : id,
     })),
-  clearSubsystem: () => set({ selectedSubsystem: null, isExploded: false, isIsolated: false }),
+  /** Set subsystem without toggling (used when navigating from a component click). */
+  selectSubsystem: (id) => set({ selectedSubsystem: id }),
+  clearSubsystem: () =>
+    set({ selectedSubsystem: null, isExploded: false, isIsolated: false, selectedComponent: null }),
+
+  // ── Component selection ───────────────────────────────────────
+  selectedComponent: null, // mesh name / component id string or null
+  setSelectedComponent: (id) =>
+    set((state) => ({
+      selectedComponent: state.selectedComponent === id ? null : id,
+    })),
 
   // ── Explode / Isolate modes ───────────────────────────────────
   isExploded: false,
@@ -40,6 +50,11 @@ const useAppStore = create((set) => ({
   animationsEnabled: true,
   toggleAnimations: () =>
     set((state) => ({ animationsEnabled: !state.animationsEnabled })),
+
+  // ── Camera reset ──────────────────────────────────────────────
+  cameraResetSignal: 0,
+  triggerCameraReset: () =>
+    set((state) => ({ cameraResetSignal: state.cameraResetSignal + 1 })),
 }));
 
 export default useAppStore;

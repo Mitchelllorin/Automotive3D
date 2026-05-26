@@ -1,19 +1,23 @@
 /**
- * Sidebar – tabbed navigation panel that renders Systems, Faults, or Info content.
+ * Sidebar – tabbed navigation panel that renders Systems, Parts, Faults, or Info content.
+ * When a component is selected, a ComponentDetail panel is pinned at the bottom.
  */
 import useAppStore from '../../store/appStore';
 import SystemsTab from './SystemsTab';
+import PartsTab from './PartsTab';
 import FaultsTab from './FaultsTab';
 import InfoTab from './InfoTab';
+import ComponentDetail from './ComponentDetail';
 
 const TABS = [
   { id: 'systems', label: '⚙ Systems' },
+  { id: 'parts', label: '🔩 Parts' },
   { id: 'faults', label: '⚠ Faults' },
   { id: 'info', label: 'ℹ Info' },
 ];
 
 export default function Sidebar() {
-  const { activeTab, setActiveTab, activeFaults } = useAppStore();
+  const { activeTab, setActiveTab, activeFaults, selectedComponent } = useAppStore();
 
   const activeFaultCount = Object.values(activeFaults).filter(Boolean).length;
 
@@ -40,9 +44,17 @@ export default function Sidebar() {
       {/* Tab content */}
       <div className="tab-panel" role="tabpanel">
         {activeTab === 'systems' && <SystemsTab />}
+        {activeTab === 'parts' && <PartsTab />}
         {activeTab === 'faults' && <FaultsTab />}
         {activeTab === 'info' && <InfoTab />}
       </div>
+
+      {/* Persistent component detail panel – shown whenever a part is selected */}
+      {selectedComponent && (
+        <div className="component-detail-panel">
+          <ComponentDetail />
+        </div>
+      )}
     </aside>
   );
 }

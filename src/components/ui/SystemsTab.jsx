@@ -1,5 +1,6 @@
 /**
  * SystemsTab – lets users select a subsystem, then isolate or explode it.
+ * Component tags in the detail panel are clickable, navigating to the Parts tab.
  */
 import useAppStore from '../../store/appStore';
 import { SUBSYSTEM_LIST } from '../../data/subsystems';
@@ -7,7 +8,11 @@ import { SUBSYSTEM_LIST } from '../../data/subsystems';
 export default function SystemsTab() {
   const {
     selectedSubsystem,
+    selectedComponent,
     setSelectedSubsystem,
+    setSelectedComponent,
+    selectSubsystem,
+    setActiveTab,
     clearSubsystem,
     isExploded,
     isIsolated,
@@ -16,6 +21,12 @@ export default function SystemsTab() {
   } = useAppStore();
 
   const selected = SUBSYSTEM_LIST.find((s) => s.id === selectedSubsystem);
+
+  const handleComponentTagClick = (meshName) => {
+    setSelectedComponent(meshName);
+    selectSubsystem(selectedSubsystem);
+    setActiveTab('parts');
+  };
 
   return (
     <div className="tab-content">
@@ -68,9 +79,14 @@ export default function SystemsTab() {
           <div className="mesh-list">
             <span className="mesh-list-label">Components:</span>
             {selected.meshNames.map((name) => (
-              <span key={name} className="mesh-tag">
+              <button
+                key={name}
+                className={`mesh-tag mesh-tag-btn ${selectedComponent === name ? 'mesh-tag-selected' : ''}`}
+                onClick={() => handleComponentTagClick(name)}
+                title="View component details"
+              >
                 {name.replace(/_/g, ' ')}
-              </span>
+              </button>
             ))}
           </div>
         </div>
