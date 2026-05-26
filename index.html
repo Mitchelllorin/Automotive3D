@@ -225,7 +225,7 @@
     <div class="top-right">
       <button class="top-btn" id="resetCam">Reset Camera</button>
       <button class="top-btn" id="rotateBtn">Rotate: ON</button>
-      <button class="top-btn" id="lightsBtn">Lights</button>
+      <button class="top-btn" id="lightsBtn">Lights: ON</button>
     </div>
   </header>
 
@@ -694,6 +694,7 @@ document.getElementById('rotateBtn').onclick = (e) => {
 
 document.getElementById('lightsBtn').onclick = () => {
   state.lightsOn = !state.lightsOn;
+  document.getElementById('lightsBtn').textContent = `Lights: ${state.lightsOn ? 'ON' : 'OFF'}`;
   headlights.forEach(h => {
     h.material.emissive.set(state.lightsOn ? '#ffffff' : '#111111');
     h.material.emissiveIntensity = state.lightsOn ? 0.75 : 0.1;
