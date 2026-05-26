@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automotive3D — Interactive 3D Vehicle Learning Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #080808;
+      --panel: #0d0d0d;
+      --accent: #ff6b35;
+      --secondary: #fbbf24;
+      --highlight: #00c8ff;
+      --text: #e8e8e8;
+      --muted: #9ca3af;
+      --sidebar-w: 290px;
+      --top-h: 56px;
+      --right-w: 340px;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, sans-serif;
+    }
+    #app { width: 100%; height: 100%; }
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--sidebar-w);
+      background: linear-gradient(180deg, #101010, #0d0d0d 45%, #0a0a0a);
+      border-right: 1px solid #1f1f1f;
+      padding: 16px 14px;
+      z-index: 20;
+      overflow-y: auto;
+    }
+    .logo {
+      font-family: Orbitron, sans-serif;
+      color: var(--accent);
+      font-size: 1.35rem;
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+    }
+    .tagline { color: var(--muted); font-size: .78rem; margin-bottom: 18px; }
+    .section-title {
+      color: #d1d5db;
+      font-size: .7rem;
+      letter-spacing: .1em;
+      margin: 14px 0 8px;
+      font-weight: 600;
+    }
+    .system-btn, .mode-btn, .top-btn {
+      width: 100%;
+      border: 1px solid #2b2b2b;
+      border-left: 4px solid transparent;
+      background: #121212;
+      color: #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      margin-bottom: 7px;
+      transition: .2s ease;
+      font-size: .86rem;
+    }
+    .system-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-align: left;
+    }
+    .system-btn:hover, .mode-btn:hover, .top-btn:hover { border-color: #444; background: #171717; }
+    .system-btn.active {
+      border-left-color: var(--active-color, var(--accent));
+      box-shadow: 0 0 12px color-mix(in srgb, var(--active-color, var(--accent)) 42%, transparent);
+      background: #191919;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 8px currentColor;
+      margin-right: 8px;
+    }
+    .system-label { display: inline-flex; align-items: center; gap: 6px; }
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mode-btn { margin: 0; }
+    .mode-btn.active { border-color: var(--accent); color: var(--accent); }
+    .selected-box {
+      margin-top: 8px;
+      background: #121212;
+      border: 1px solid #262626;
+      border-radius: 10px;
+      padding: 10px;
+    }
+    .selected-name { font-weight: 600; min-height: 20px; }
+    .badge {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: .72rem;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .topbar {
+      position: fixed;
+      left: var(--sidebar-w);
+      right: 0;
+      top: 0;
+      height: var(--top-h);
+      border-bottom: 1px solid #1d1d1d;
+      background: rgba(10,10,10,.85);
+      backdrop-filter: blur(6px);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 16px;
+      z-index: 15;
+    }
+    .top-left { font-family: Orbitron,sans-serif; color: var(--accent); font-size: .95rem; }
+    .top-center { text-align: center; color: #f3f4f6; font-weight: 600; }
+    .top-right { justify-self: end; display: flex; gap: 8px; }
+    .top-btn {
+      width: auto;
+      margin: 0;
+      padding: 7px 10px;
+      font-size: .78rem;
+      border-radius: 7px;
+    }
+    #viewer {
+      position: fixed;
+      left: var(--sidebar-w);
+      right: 0;
+      top: var(--top-h);
+      bottom: 0;
+    }
+    .info-panel {
+      position: fixed;
+      top: var(--top-h);
+      right: calc(-1 * var(--right-w));
+      width: var(--right-w);
+      height: calc(100% - var(--top-h));
+      background: rgba(13,13,13,.96);
+      border-left: 1px solid #252525;
+      z-index: 25;
+      padding: 16px;
+      transition: right .28s ease;
+      overflow-y: auto;
+    }
+    .info-panel.open { right: 0; }
+    .component-title {
+      font-family: Orbitron, sans-serif;
+      color: var(--accent);
+      font-size: 1.35rem;
+      margin: 0 0 6px;
+    }
+    .close-btn {
+      float: right;
+      border: 1px solid #444;
+      background: #151515;
+      color: #ddd;
+      border-radius: 6px;
+      padding: 5px 9px;
+      cursor: pointer;
+    }
+    .copy { color: #d1d5db; font-size: .9rem; line-height: 1.5; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px;
+      font-size: .84rem;
+    }
+    td {
+      border-bottom: 1px solid #242424;
+      padding: 7px 4px;
+    }
+    td:first-child { color: #9ca3af; width: 38%; }
+    .how { background: #121212; border: 1px solid #242424; border-radius: 10px; padding: 10px; }
+    @media (max-width: 1160px) {
+      .sidebar { width: 250px; }
+      #viewer, .topbar { left: 250px; }
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar">
+    <div class="logo">Automotive3D</div>
+    <div class="tagline">Vehicle Systems Explorer</div>
+
+    <div class="section-title">VEHICLE SYSTEMS</div>
+    <div id="systems"></div>
+
+    <div class="section-title">VIEW MODE</div>
+    <div class="mode-grid" id="modes"></div>
+
+    <div class="section-title">SELECTED COMPONENT</div>
+    <div class="selected-box">
+      <div class="selected-name" id="selectedName">None</div>
+      <span class="badge" id="selectedBadge" style="display:none">System</span>
+    </div>
+  </aside>
+
+  <header class="topbar">
+    <div class="top-left">Automotive3D</div>
+    <div class="top-center" id="currentSystem">Engine &amp; Drivetrain</div>
+    <div class="top-right">
+      <button class="top-btn" id="resetCam">Reset Camera</button>
+      <button class="top-btn" id="rotateBtn">Rotate: ON</button>
+      <button class="top-btn" id="lightsBtn">Lights</button>
+    </div>
+  </header>
+
+  <main id="viewer"></main>
+
+  <aside class="info-panel" id="infoPanel">
+    <button class="close-btn" id="closePanel">Close ✕</button>
+    <h2 class="component-title" id="panelTitle">Component</h2>
+    <div><span class="badge" id="panelBadge"></span></div>
+    <p class="copy" id="panelDescription"></p>
+    <table id="specTable"></table>
+    <div class="section-title">HOW IT WORKS</div>
+    <div class="copy how" id="panelHow"></div>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const SYSTEMS = [
+  { key: 'engine', label: 'Engine & Drivetrain', color: '#ef4444', icon: '🔧' },
+  { key: 'electrical', label: 'Electrical System', color: '#fbbf24', icon: '⚡' },
+  { key: 'suspension', label: 'Suspension & Steering', color: '#00c8ff', icon: '🛞' },
+  { key: 'braking', label: 'Braking System', color: '#f97316', icon: '🛑' },
+  { key: 'fuel', label: 'Fuel System', color: '#22c55e', icon: '⛽' },
+  { key: 'cooling', label: 'Cooling System', color: '#38bdf8', icon: '❄️' },
+  { key: 'exhaust', label: 'Exhaust System', color: '#a855f7', icon: '💨' },
+  { key: 'body', label: 'Body & Chassis', color: '#e8e8e8', icon: '🚗' }
+];
+const systemMap = Object.fromEntries(SYSTEMS.map(s => [s.key, s]));
+
+const componentData = {
+  ENGINE_BLOCK: {
+    title: 'Engine Block',
+    description: 'The engine block is the structural core of the powertrain, containing cylinder bores and coolant passages. It carries combustion loads and supports the crankshaft assembly. In modern vehicles, materials balance strength, thermal stability, and mass for performance and efficiency.',
+    specs: { Material: 'Cast aluminum/iron', Cylinders: 'Inline-4', Function: 'Converts fuel energy', Temp: '90–110°C operating' },
+    how: 'Pistons cycle inside cylinders to convert combustion pressure into rotational torque at the crankshaft. That torque is routed through the drivetrain to move the vehicle.'
+  },
+  BATTERY: {
+    title: '12V Battery',
+    description: 'The battery supplies startup current to the starter motor and powers electronics when the engine is off. It also stabilizes voltage for sensors and control modules. Charging is restored by the alternator while driving.',
+    specs: { Voltage: '12 V', Chemistry: 'Lead-acid/AGM', Role: 'Electrical storage', Capacity: '45–80 Ah' },
+    how: 'During cranking, the battery delivers high current. Once the engine is running, the alternator replenishes battery charge and supports the electrical load.'
+  },
+  RADIATOR: {
+    title: 'Radiator',
+    description: 'The radiator removes heat from circulating coolant after it absorbs combustion heat from the engine. Airflow through its fin network dissipates thermal energy. It is critical for preventing overheating and maintaining stable performance.',
+    specs: { Core: 'Aluminum fin-tube', Coolant: 'Water-glycol mix', Purpose: 'Heat rejection', Location: 'Front module' },
+    how: 'A pump drives hot coolant into the radiator core. As air passes across fins, heat transfers to ambient air and cooler fluid returns to the engine.'
+  },
+  FUEL_TANK: {
+    title: 'Fuel Tank',
+    description: 'The fuel tank stores gasoline safely and delivers it to the engine through a controlled low-pressure path. Internal baffling reduces slosh during cornering and braking. Evap emissions systems manage vapor safely.',
+    specs: { Capacity: '45–70 L', Position: 'Rear underside', Material: 'HDPE/steel', Delivery: 'Pump + line' },
+    how: 'A submerged pump sends fuel through supply lines toward the engine where pressure regulation and injection control enable precise combustion.'
+  },
+  EXHAUST_PIPE: {
+    title: 'Exhaust Path',
+    description: 'The exhaust path routes combustion gases from the engine to the rear outlet while reducing noise and emissions. Its geometry balances back pressure and flow efficiency. Heat shielding protects adjacent components.',
+    specs: { Material: 'Stainless steel', Route: 'Underbody', Includes: 'Muffler + tail tip', Goal: 'Gas evacuation' },
+    how: 'Exhaust pulses exit cylinders and travel through tuned tubing. Acoustic and catalytic sections condition flow before it exits at the rear tip.'
+  }
+};
+
+const state = {
+  selectedSystem: 'engine',
+  selectedMesh: null,
+  mode: 'full',
+  autoRotate: true,
+  lightsOn: true
+};
+
+const app = document.getElementById('viewer');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#080808');
+scene.fog = new THREE.Fog('#080808', 12, 32);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(app.clientWidth, app.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(50, app.clientWidth / app.clientHeight, 0.1, 100);
+camera.position.set(6.2, 3.3, 6.4);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0.95, 0);
+
+const hemi = new THREE.HemisphereLight('#f0f6ff', '#161616', 0.5);
+scene.add(hemi);
+const key = new THREE.DirectionalLight('#fff8ee', 2.2);
+key.position.set(6, 8, 5);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+scene.add(key);
+const rim = new THREE.PointLight('#00c8ff', 1.3, 18);
+rim.position.set(-4, 3, -4);
+scene.add(rim);
+
+const floor = new THREE.Mesh(
+  new THREE.CylinderGeometry(14, 14, 0.2, 90),
+  new THREE.MeshStandardMaterial({ color: '#0f0f0f', roughness: 0.16, metalness: 0.72 })
+);
+floor.position.y = -0.05;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const carRoot = new THREE.Group();
+scene.add(carRoot);
+
+const allMeshes = [];
+const bySystem = Object.fromEntries(SYSTEMS.map(s => [s.key, []]));
+const resettable = [];
+const opaqueMaterials = [];
+const headlights = [];
+const taillights = [];
+const pointHeadlights = [];
+
+function mat(c, extra = {}) {
+  return new THREE.MeshStandardMaterial({ color: c, roughness: 0.35, metalness: 0.55, ...extra });
+}
+const bodyRed = mat('#cc2200', { roughness: 0.28, metalness: 0.72 });
+const darkMetal = mat('#3f3f43', { roughness: 0.45, metalness: 0.9 });
+const blackRubber = mat('#111111', { roughness: 0.92, metalness: 0.1 });
+const silver = mat('#c5cad3', { roughness: 0.22, metalness: 1 });
+const glass = new THREE.MeshPhysicalMaterial({ color: '#88ccff', transparent: true, opacity: 0.25, roughness: 0.04, metalness: 0, transmission: 0.6 });
+
+function register(mesh, name, system) {
+  mesh.name = name;
+  mesh.userData.system = system;
+  mesh.userData.basePos = mesh.position.clone();
+  mesh.userData.baseRot = mesh.rotation.clone();
+  allMeshes.push(mesh);
+  bySystem[system].push(mesh);
+  resettable.push(mesh);
+  if (mesh.material && !Array.isArray(mesh.material) && !mesh.material.transparent) opaqueMaterials.push(mesh.material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  carRoot.add(mesh);
+  return mesh;
+}
+
+function addNamed(geometry, material, name, system, pos, rot) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.copy(pos);
+  if (rot) mesh.rotation.set(rot.x, rot.y, rot.z);
+  return register(mesh, name, system);
+}
+
+addNamed(new THREE.BoxGeometry(4.2, 0.18, 1.8), darkMetal, 'CHASSIS', 'body', new THREE.Vector3(0, 0.45, 0));
+addNamed(new THREE.BoxGeometry(4.0, 0.55, 1.85), bodyRed, 'BODY_LOWER', 'body', new THREE.Vector3(0, 0.85, 0));
+const upper = addNamed(new THREE.BoxGeometry(2.2, 0.55, 1.75), bodyRed.clone(), 'BODY_UPPER', 'body', new THREE.Vector3(-0.05, 1.4, 0));
+upper.scale.set(1, 1, 0.9);
+addNamed(new THREE.BoxGeometry(1.4, 0.06, 1.75), bodyRed.clone(), 'HOOD', 'body', new THREE.Vector3(1.3, 1.12, 0), new THREE.Euler(-0.08, 0, 0));
+addNamed(new THREE.BoxGeometry(0.9, 0.06, 1.75), bodyRed.clone(), 'TRUNK', 'body', new THREE.Vector3(-1.25, 1.12, 0), new THREE.Euler(0.06, 0, 0));
+addNamed(new THREE.PlaneGeometry(1.35, 0.7), glass, 'WINDSHIELD_FRONT', 'body', new THREE.Vector3(0.72, 1.52, 0), new THREE.Euler(0, Math.PI / 2, -0.54));
+addNamed(new THREE.PlaneGeometry(1.15, 0.64), glass.clone(), 'WINDSHIELD_REAR', 'body', new THREE.Vector3(-0.72, 1.5, 0), new THREE.Euler(0, -Math.PI / 2, -0.5));
+addNamed(new THREE.PlaneGeometry(1.8, 0.42), glass.clone(), 'WINDOWS_LEFT', 'body', new THREE.Vector3(0, 1.45, -0.93), new THREE.Euler(0, 0, 0));
+addNamed(new THREE.PlaneGeometry(1.8, 0.42), glass.clone(), 'WINDOWS_RIGHT', 'body', new THREE.Vector3(0, 1.45, 0.93), new THREE.Euler(0, Math.PI, 0));
+addNamed(new THREE.BoxGeometry(0.15, 0.38, 1.85), darkMetal.clone(), 'FRONT_BUMPER', 'body', new THREE.Vector3(2.13, 0.72, 0));
+addNamed(new THREE.BoxGeometry(0.15, 0.38, 1.85), darkMetal.clone(), 'REAR_BUMPER', 'body', new THREE.Vector3(-2.13, 0.72, 0));
+addNamed(new THREE.BoxGeometry(0.08, 0.28, 1.1), mat('#151515', { roughness: 0.9 }), 'GRILLE', 'body', new THREE.Vector3(2.19, 0.78, 0));
+
+function addHeadlight(name, x, z, side) {
+  const mesh = addNamed(new THREE.BoxGeometry(0.12, 0.16, 0.38), mat('#efefef', { emissive: '#111111' }), name, 'electrical', new THREE.Vector3(x, 0.95, z));
+  headlights.push(mesh);
+  const p = new THREE.PointLight('#ffffff', 2, 4);
+  p.position.set(x + (side * 0.03), 0.95, z);
+  p.userData.base = p.intensity;
+  pointHeadlights.push(p);
+  scene.add(p);
+}
+addHeadlight('HEADLIGHT_LEFT', 2.1, -0.68, 1);
+addHeadlight('HEADLIGHT_RIGHT', 2.1, 0.68, 1);
+
+taillights.push(addNamed(new THREE.BoxGeometry(0.1, 0.2, 0.4), mat('#8a1818', { emissive: '#400' }), 'TAILLIGHT_LEFT', 'electrical', new THREE.Vector3(-2.1, 0.93, -0.68)));
+taillights.push(addNamed(new THREE.BoxGeometry(0.1, 0.2, 0.4), mat('#8a1818', { emissive: '#400' }), 'TAILLIGHT_RIGHT', 'electrical', new THREE.Vector3(-2.1, 0.93, 0.68)));
+addNamed(new THREE.BoxGeometry(0.18, 0.12, 0.06), darkMetal.clone(), 'SIDE_MIRROR_LEFT', 'body', new THREE.Vector3(0.95, 1.3, -0.98));
+addNamed(new THREE.BoxGeometry(0.18, 0.12, 0.06), darkMetal.clone(), 'SIDE_MIRROR_RIGHT', 'body', new THREE.Vector3(0.95, 1.3, 0.98));
+
+addNamed(new THREE.BoxGeometry(1.2, 0.7, 0.04), bodyRed.clone(), 'DOOR_FRONT_LEFT', 'body', new THREE.Vector3(0.55, 1.0, -0.94));
+addNamed(new THREE.BoxGeometry(1.0, 0.7, 0.04), bodyRed.clone(), 'DOOR_REAR_LEFT', 'body', new THREE.Vector3(-0.6, 1.0, -0.94));
+addNamed(new THREE.BoxGeometry(1.2, 0.7, 0.04), bodyRed.clone(), 'DOOR_FRONT_RIGHT', 'body', new THREE.Vector3(0.55, 1.0, 0.94));
+addNamed(new THREE.BoxGeometry(1.0, 0.7, 0.04), bodyRed.clone(), 'DOOR_REAR_RIGHT', 'body', new THREE.Vector3(-0.6, 1.0, 0.94));
+
+const wheelPositions = [
+  { n: 'FL', x: 1.3, y: 0.38, z: -0.98 },
+  { n: 'FR', x: 1.3, y: 0.38, z: 0.98 },
+  { n: 'RL', x: -1.3, y: 0.38, z: -0.98 },
+  { n: 'RR', x: -1.3, y: 0.38, z: 0.98 }
+];
+
+for (const wp of wheelPositions) {
+  const g = new THREE.Group();
+  g.position.set(wp.x, wp.y, wp.z);
+  g.name = `WHEEL_${wp.n}`;
+  g.userData.system = 'suspension';
+  g.userData.basePos = g.position.clone();
+  carRoot.add(g);
+  bySystem.suspension.push(g);
+  resettable.push(g);
+
+  const tire = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.13, 16, 32), blackRubber.clone());
+  tire.rotation.y = Math.PI / 2;
+  tire.name = `WHEEL_${wp.n}_TIRE`;
+  tire.userData.system = 'suspension';
+  g.add(tire);
+  allMeshes.push(tire);
+
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.13, 20), silver.clone());
+  rim.rotation.z = Math.PI / 2;
+  rim.name = `WHEEL_${wp.n}_RIM`;
+  rim.userData.system = 'suspension';
+  g.add(rim);
+  allMeshes.push(rim);
+
+  const hub = new THREE.Mesh(new THREE.CircleGeometry(0.1, 6), silver.clone());
+  hub.rotation.y = wp.z < 0 ? Math.PI / 2 : -Math.PI / 2;
+  hub.name = `WHEEL_${wp.n}_HUB`;
+  hub.userData.system = 'suspension';
+  g.add(hub);
+  allMeshes.push(hub);
+
+  for (let i = 0; i < 5; i++) {
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 0.02), silver.clone());
+    const a = (i / 5) * Math.PI * 2;
+    spoke.position.set(0, Math.cos(a) * 0.06, Math.sin(a) * 0.06);
+    spoke.rotation.x = a;
+    spoke.name = `WHEEL_${wp.n}_SPOKE_${i + 1}`;
+    spoke.userData.system = 'suspension';
+    hub.add(spoke);
+    allMeshes.push(spoke);
+  }
+
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.03, 32), silver.clone());
+  disc.rotation.z = Math.PI / 2;
+  disc.position.x = wp.z < 0 ? 0.08 : -0.08;
+  disc.name = `BRAKE_DISC_${wp.n}`;
+  disc.userData.system = 'braking';
+  g.add(disc);
+  allMeshes.push(disc);
+  bySystem.braking.push(disc);
+
+  const caliper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.08), mat('#c02424', { emissive: '#330000' }));
+  caliper.position.set(0, 0.22, wp.z < 0 ? 0.08 : -0.08);
+  caliper.name = `BRAKE_CALIPER_${wp.n}`;
+  caliper.userData.system = 'braking';
+  g.add(caliper);
+  allMeshes.push(caliper);
+  bySystem.braking.push(caliper);
+
+  const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.45, 18), silver.clone());
+  coil.position.set(wp.x > 0 ? -0.05 : 0.05, 0.55, 0);
+  coil.name = `SUSPENSION_COIL_${wp.n}`;
+  coil.userData.system = 'suspension';
+  carRoot.add(coil);
+  allMeshes.push(coil);
+  bySystem.suspension.push(coil);
+
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.05, 0.07), darkMetal.clone());
+  arm.position.set(wp.x > 0 ? 1.05 : -1.05, 0.42, wp.z);
+  arm.rotation.z = wp.x > 0 ? -0.18 : 0.18;
+  arm.name = `CONTROL_ARM_${wp.n}`;
+  arm.userData.system = 'suspension';
+  carRoot.add(arm);
+  allMeshes.push(arm);
+  bySystem.suspension.push(arm);
+}
+
+addNamed(new THREE.CylinderGeometry(0.04, 0.04, 1.6, 16), silver.clone(), 'STEERING_RACK', 'suspension', new THREE.Vector3(1.2, 0.4, 0), new THREE.Euler(0, 0, Math.PI / 2));
+
+addNamed(new THREE.BoxGeometry(0.85, 0.55, 1.05), darkMetal.clone(), 'ENGINE_BLOCK', 'engine', new THREE.Vector3(1.4, 0.7, 0));
+for (let i = 0; i < 4; i++) {
+  addNamed(new THREE.CylinderGeometry(0.09, 0.09, 0.45, 16), silver.clone(), `ENGINE_CYLINDER_${i + 1}`, 'engine', new THREE.Vector3(1.15 + i * 0.15, 1.0, -0.25 + i * 0.17), new THREE.Euler(0, 0, Math.PI / 2));
+}
+addNamed(new THREE.CylinderGeometry(0.12, 0.12, 0.22, 18), silver.clone(), 'ALTERNATOR', 'electrical', new THREE.Vector3(1.05, 0.88, -0.4), new THREE.Euler(0, 0, Math.PI / 2));
+addNamed(new THREE.BoxGeometry(0.35, 0.22, 0.24), mat('#121212', { roughness: .7 }), 'BATTERY', 'electrical', new THREE.Vector3(0.9, 0.82, 0.45));
+const batteryTop = addNamed(new THREE.BoxGeometry(0.35, 0.03, 0.24), mat('#f6cb37', { roughness: .5 }), 'BATTERY_TOP', 'electrical', new THREE.Vector3(0.9, 0.94, 0.45));
+batteryTop.userData.parentName = 'BATTERY';
+
+addNamed(new THREE.BoxGeometry(0.09, 0.55, 1.35), mat('#20242b', { emissive: '#12161d', roughness: .6 }), 'RADIATOR', 'cooling', new THREE.Vector3(1.98, 0.85, 0));
+addNamed(new THREE.CylinderGeometry(0.09, 0.09, 0.22, 16), new THREE.MeshPhysicalMaterial({ color: '#7dd3fc', transparent: true, opacity: 0.5, roughness: 0.12, metalness: 0.2 }), 'COOLANT_RESERVOIR', 'cooling', new THREE.Vector3(1.78, 0.92, 0.62));
+addNamed(new THREE.BoxGeometry(0.85, 0.22, 1.2), darkMetal.clone(), 'FUEL_TANK', 'fuel', new THREE.Vector3(-1.5, 0.35, 0));
+
+function tube(points, radius, color, name, system) {
+  const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p)));
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 36, radius, 8, false), mat(color, { roughness: .45, metalness: .6 }));
+  register(mesh, name, system);
+  return mesh;
+}
+
+tube([[-1.4, 0.42, 0.0], [-0.6, 0.45, -0.1], [0.3, 0.55, -0.05], [1.2, 0.7, 0.0]], 0.03, '#22c55e', 'FUEL_LINE', 'fuel');
+tube([[1.5, 0.62, 0.32], [0.8, 0.48, 0.58], [-0.3, 0.42, 0.7], [-1.55, 0.35, 0.68]], 0.05, '#4b4b54', 'EXHAUST_PIPE', 'exhaust');
+addNamed(new THREE.CylinderGeometry(0.15, 0.15, 0.55, 20), darkMetal.clone(), 'MUFFLER', 'exhaust', new THREE.Vector3(-0.7, 0.43, 0.7), new THREE.Euler(0, 0, Math.PI / 2));
+addNamed(new THREE.CylinderGeometry(0.06, 0.08, 0.25, 16), silver.clone(), 'EXHAUST_TIP', 'exhaust', new THREE.Vector3(-2.0, 0.36, 0.72), new THREE.Euler(0, 0, Math.PI / 2));
+addNamed(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 16), silver.clone(), 'DRIVESHAFT', 'engine', new THREE.Vector3(0, 0.34, 0), new THREE.Euler(0, 0, Math.PI / 2));
+
+function wiring(name, pts) {
+  tube(pts, 0.016, '#facc15', name, 'electrical');
+}
+wiring('WIRING_TO_ENGINE', [[0.9,0.85,0.45],[1.08,0.95,0.2],[1.38,0.95,0.0]]);
+wiring('WIRING_TO_HEADLIGHT_L', [[0.9,0.85,0.45],[1.25,0.95,0.1],[2.0,0.96,-0.67]]);
+wiring('WIRING_TO_HEADLIGHT_R', [[0.9,0.85,0.45],[1.25,0.95,0.2],[2.0,0.96,0.67]]);
+wiring('WIRING_CABIN', [[0.8,0.9,0.35],[0.2,1.0,0.2],[-0.6,1.1,0.1],[-1.2,1.1,0.1]]);
+
+for (const m of allMeshes) {
+  if (m.material && !Array.isArray(m.material) && !m.material.transparent) {
+    m.userData.baseEmissive = m.material.emissive ? m.material.emissive.clone() : new THREE.Color('#000');
+    m.userData.baseIntensity = m.material.emissiveIntensity || 0;
+  }
+}
+
+const systemsEl = document.getElementById('systems');
+SYSTEMS.forEach(sys => {
+  const b = document.createElement('button');
+  b.className = 'system-btn';
+  b.dataset.key = sys.key;
+  b.innerHTML = `<span class="system-label"><span>${sys.icon}</span><span class="dot" style="color:${sys.color};background:${sys.color}"></span><span>${sys.label}</span></span>`;
+  b.onclick = () => setSystem(sys.key);
+  systemsEl.appendChild(b);
+});
+
+const modes = [
+  { key: 'full', label: 'Full Car' },
+  { key: 'cutaway', label: 'Cutaway' },
+  { key: 'explode', label: 'Explode' },
+  { key: 'wire', label: 'Wireframe' }
+];
+const modeEl = document.getElementById('modes');
+modes.forEach(m => {
+  const b = document.createElement('button');
+  b.className = 'mode-btn';
+  b.dataset.key = m.key;
+  b.textContent = m.label;
+  b.onclick = () => setMode(m.key);
+  modeEl.appendChild(b);
+});
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects(allMeshes, true).find(i => i.object.name);
+  if (hit) selectComponent(hit.object);
+});
+
+function normName(name) {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function detailFor(mesh) {
+  const key = mesh.name.startsWith('ENGINE_CYLINDER') ? 'ENGINE_BLOCK' :
+              mesh.name.startsWith('BRAKE_DISC') ? 'BRAKE_DISC' :
+              mesh.name.startsWith('BRAKE_CALIPER') ? 'BRAKE_CALIPER' :
+              mesh.name.startsWith('WHEEL_') ? 'WHEEL' : mesh.name;
+  if (componentData[key]) return componentData[key];
+  const sys = systemMap[mesh.userData.system];
+  return {
+    title: normName(mesh.name),
+    description: `${normName(mesh.name)} is part of the ${sys.label.toLowerCase()} and contributes to safety, performance, and efficiency. Its material and placement are tuned for load, heat, and durability in real vehicles. This model highlights how it integrates with neighboring components in the chassis package.`,
+    specs: { System: sys.label, Material: 'Automotive-grade composite/metal', Position: 'Integrated assembly', Focus: 'Function + reliability' },
+    how: `In operation, ${normName(mesh.name).toLowerCase()} works with related ${sys.label.toLowerCase()} parts so forces, energy, or signals move through the vehicle in a controlled path.`
+  };
+}
+
+function selectComponent(mesh) {
+  state.selectedMesh = mesh;
+  const info = detailFor(mesh);
+  const sys = systemMap[mesh.userData.system];
+
+  document.getElementById('selectedName').textContent = info.title;
+  const selectedBadge = document.getElementById('selectedBadge');
+  selectedBadge.style.display = 'inline-block';
+  selectedBadge.textContent = sys.label;
+  selectedBadge.style.background = sys.color;
+
+  document.getElementById('panelTitle').textContent = info.title;
+  const panelBadge = document.getElementById('panelBadge');
+  panelBadge.textContent = sys.label;
+  panelBadge.style.background = sys.color;
+  document.getElementById('panelDescription').textContent = info.description;
+  const table = document.getElementById('specTable');
+  table.innerHTML = Object.entries(info.specs).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  document.getElementById('panelHow').textContent = info.how;
+  document.getElementById('infoPanel').classList.add('open');
+
+  setSystem(mesh.userData.system);
+}
+
+document.getElementById('closePanel').onclick = () => document.getElementById('infoPanel').classList.remove('open');
+
+function setSystem(key) {
+  state.selectedSystem = key;
+  const sys = systemMap[key];
+  document.getElementById('currentSystem').textContent = sys.label;
+  document.querySelectorAll('.system-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.key === key);
+    if (btn.dataset.key === key) btn.style.setProperty('--active-color', sys.color);
+  });
+
+  for (const mesh of allMeshes) {
+    const mat = mesh.material;
+    if (!mat || Array.isArray(mat) || mat.transparent || !mat.emissive) continue;
+    const isTarget = mesh.userData.system === key;
+    mat.emissive.copy(isTarget ? new THREE.Color(sys.color) : mesh.userData.baseEmissive);
+    mat.emissiveIntensity = isTarget ? 0.5 : mesh.userData.baseIntensity;
+  }
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.key === mode));
+
+  for (const m of resettable) {
+    m.position.copy(m.userData.basePos);
+    m.rotation.copy(m.userData.baseRot);
+    m.visible = true;
+  }
+  opaqueMaterials.forEach(m => m.wireframe = false);
+
+  if (mode === 'cutaway') {
+    ['HOOD', 'BODY_UPPER', 'WINDSHIELD_FRONT', 'WINDSHIELD_REAR', 'WINDOWS_LEFT', 'WINDOWS_RIGHT'].forEach(name => {
+      const mesh = allMeshes.find(m => m.name === name);
+      if (mesh) mesh.visible = false;
+    });
+  }
+
+  if (mode === 'explode') {
+    const offsets = {
+      engine: new THREE.Vector3(0.8, 0.2, 0),
+      electrical: new THREE.Vector3(0.4, 0.45, 0.6),
+      suspension: new THREE.Vector3(0, -0.15, 0),
+      braking: new THREE.Vector3(0, 0.06, 0),
+      fuel: new THREE.Vector3(-0.75, 0.1, -0.5),
+      cooling: new THREE.Vector3(1.0, 0.3, 0),
+      exhaust: new THREE.Vector3(-0.8, -0.05, 0.8),
+      body: new THREE.Vector3(0, 0.6, 0)
+    };
+    for (const mesh of resettable) {
+      const off = offsets[mesh.userData.system] || new THREE.Vector3();
+      mesh.position.add(off);
+    }
+  }
+
+  if (mode === 'wire') opaqueMaterials.forEach(m => m.wireframe = true);
+}
+
+document.getElementById('resetCam').onclick = () => {
+  camera.position.set(6.2, 3.3, 6.4);
+  controls.target.set(0, 0.95, 0);
+};
+
+document.getElementById('rotateBtn').onclick = (e) => {
+  state.autoRotate = !state.autoRotate;
+  e.target.textContent = `Rotate: ${state.autoRotate ? 'ON' : 'OFF'}`;
+};
+
+document.getElementById('lightsBtn').onclick = () => {
+  state.lightsOn = !state.lightsOn;
+  headlights.forEach(h => {
+    h.material.emissive.set(state.lightsOn ? '#ffffff' : '#111111');
+    h.material.emissiveIntensity = state.lightsOn ? 0.75 : 0.1;
+  });
+  taillights.forEach(t => {
+    t.material.emissive.set(state.lightsOn ? '#f03' : '#300');
+    t.material.emissiveIntensity = state.lightsOn ? 0.55 : 0.2;
+  });
+  pointHeadlights.forEach(p => p.intensity = state.lightsOn ? p.userData.base : 0);
+};
+
+window.addEventListener('resize', () => {
+  camera.aspect = app.clientWidth / app.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(app.clientWidth, app.clientHeight);
+});
+
+setMode('full');
+setSystem('engine');
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  if (state.autoRotate) carRoot.rotation.y += dt * 0.35;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
