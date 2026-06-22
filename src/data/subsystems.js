@@ -1,48 +1,42 @@
 /**
- * Subsystem definitions for the Automotive3D MVP.
- * Each subsystem includes display info, colour, and which mesh names belong to it.
+ * Sub-assembly ("system") definitions for the active assembly — the inline-4
+ * engine. Each entry groups the part mesh names that belong together so the
+ * Systems tab can isolate / highlight a whole sub-assembly.
+ *
+ * The previous whole-vehicle data set is preserved in ./vehicle_archive for when
+ * the rest of the car is brought back online.
  */
 
 export const SUBSYSTEMS = {
-  engine: {
-    id: 'engine',
-    label: 'Engine',
+  block: {
+    id: 'block',
+    label: 'Short Block',
     color: '#e74c3c',
     highlightColor: '#ff6b6b',
     description:
-      'The internal combustion engine converts fuel into mechanical energy through a series of controlled explosions inside its cylinders.',
-    meshNames: ['engine_block', 'pistons', 'crankshaft', 'camshaft', 'valves'],
-    explodeOffset: [0, 0.8, 0],
+      'The cylinder block is the engine’s main structure. It houses the cylinder bores, the crankshaft, and the pistons, and is sealed at the bottom by the oil pan.',
+    meshNames: ['engine_block', 'oil_pan', 'crankshaft', 'pistons', 'dipstick', 'oil_filter', 'senders'],
+    explodeOffset: [0, 0, 0],
   },
-  cooling: {
-    id: 'cooling',
-    label: 'Cooling',
+  head: {
+    id: 'head',
+    label: 'Heads & Valvetrain',
     color: '#3498db',
     highlightColor: '#74b9ff',
     description:
-      'The cooling system maintains optimal engine temperature by circulating coolant through the engine block and radiator.',
-    meshNames: ['radiator', 'water_pump', 'thermostat', 'coolant_hoses', 'fan'],
-    explodeOffset: [1.2, 0.4, 0],
+      'A cylinder head caps each bank of the V, sealing the bores and carrying the valves. In this OHV V8 the camshaft sits in the block valley and works the valves through pushrods; chrome valve covers keep the oil in.',
+    meshNames: ['cylinder_head', 'camshaft', 'valve_cover', 'valvetrain'],
+    explodeOffset: [0, 0.8, 0],
   },
-  electrical: {
-    id: 'electrical',
-    label: 'Electrical',
-    color: '#f1c40f',
-    highlightColor: '#ffeaa7',
+  intake: {
+    id: 'intake',
+    label: 'Induction',
+    color: '#2ecc71',
+    highlightColor: '#55efc4',
     description:
-      'The electrical system powers all electronic components. It includes the battery, alternator, fuses, and wiring harness.',
-    meshNames: ['battery', 'alternator', 'fuse_box', 'starter_motor', 'wiring'],
-    explodeOffset: [-1.2, 0.4, 0],
-  },
-  fuel: {
-    id: 'fuel',
-    label: 'Fuel',
-    color: '#e67e22',
-    highlightColor: '#fdcb6e',
-    description:
-      'The fuel system delivers a precise air–fuel mixture to the engine. It includes the tank, fuel pump, injectors, and throttle body.',
-    meshNames: ['fuel_tank', 'fuel_pump', 'fuel_injectors', 'throttle_body', 'fuel_lines'],
-    explodeOffset: [0, -0.6, -1.2],
+      'Air enters through the round air cleaner, mixes with fuel in the carburettor, and the valley intake manifold distributes the charge to both banks. The distributor at the rear fires the plugs in order.',
+    meshNames: ['intake_manifold', 'carburetor', 'air_cleaner', 'distributor', 'pcv_breather', 'throttle_linkage'],
+    explodeOffset: [0, 0.4, 1.2],
   },
   exhaust: {
     id: 'exhaust',
@@ -50,19 +44,79 @@ export const SUBSYSTEMS = {
     color: '#95a5a6',
     highlightColor: '#b2bec3',
     description:
-      'The exhaust system routes combustion gases away from the engine, reduces noise, and filters harmful emissions via the catalytic converter.',
-    meshNames: ['exhaust_manifold', 'catalytic_converter', 'muffler', 'exhaust_pipe', 'o2_sensor'],
-    explodeOffset: [0, -0.6, 1.2],
+      'Tubular headers collect spent gases from each bank’s exhaust ports and merge them into a collector under each side of the engine.',
+    meshNames: ['exhaust_manifold'],
+    explodeOffset: [0, 0.2, -1.2],
   },
-  suspension: {
-    id: 'suspension',
-    label: 'Suspension',
+  driveline: {
+    id: 'driveline',
+    label: 'Driveline',
     color: '#9b59b6',
     highlightColor: '#a29bfe',
     description:
-      'The suspension system supports the vehicle weight, absorbs road shocks, and maintains tire contact with the road surface.',
-    meshNames: ['struts', 'control_arms', 'sway_bar', 'springs', 'wheel_hubs'],
-    explodeOffset: [0, -1.4, 0],
+      'The flywheel bolts to the back of the crankshaft and the bell housing encloses it, mating the engine to the transmission. This is where the engine becomes a complete "motor".',
+    meshNames: ['bell_housing', 'flywheel', 'starter'],
+    explodeOffset: [-1.5, 0, 0],
+  },
+  cooling: {
+    id: 'cooling',
+    label: 'Cooling & Belt Drive',
+    color: '#00cec9',
+    highlightColor: '#81ecec',
+    description:
+      'The water pump on the nose of the block circulates coolant, the engine-driven fan pulls air through the radiator, and a single V-belt off the crank pulley spins the pump and alternator together.',
+    meshNames: ['water_pump', 'cooling_fan', 'drive_belt', 'thermostat'],
+    explodeOffset: [2.8, 0.2, 0],
+  },
+  charging: {
+    id: 'charging',
+    label: 'Charging',
+    color: '#e17055',
+    highlightColor: '#fab1a0',
+    description:
+      'The belt-driven alternator generates current to run the ignition and accessories and to keep the battery charged while the engine is running.',
+    meshNames: ['alternator'],
+    explodeOffset: [2.0, 1.4, 0.4],
+  },
+  ignition: {
+    id: 'ignition',
+    label: 'Ignition',
+    color: '#e056fd',
+    highlightColor: '#d980fa',
+    description:
+      'The distributor sends high-voltage spark out through eight plug wires to the spark plugs threaded into the heads, firing each cylinder in the engine’s firing order.',
+    meshNames: ['spark_plugs', 'distributor', 'vacuum_advance'],
+    explodeOffset: [0, 2.4, 0],
+  },
+  fuel: {
+    id: 'fuel',
+    label: 'Fuel Delivery',
+    color: '#fdcb6e',
+    highlightColor: '#ffeaa7',
+    description:
+      'A camshaft-driven mechanical pump draws fuel from the tank and pushes it up the steel line to the carburettor float bowls.',
+    meshNames: ['fuel_pump', 'carburetor'],
+    explodeOffset: [2.0, -0.6, 0],
+  },
+  mounting: {
+    id: 'mounting',
+    label: 'Engine Mounts',
+    color: '#7f8c8d',
+    highlightColor: '#b2bec3',
+    description:
+      'Rubber-isolated mounts carry the engine’s weight and the twist of its torque while keeping vibration out of the chassis. A bracket bolts to each side of the block and lands on a frame perch.',
+    meshNames: ['motor_mounts'],
+    explodeOffset: [0, -1.8, 0],
+  },
+  fasteners: {
+    id: 'fasteners',
+    label: 'Bolts & Nuts',
+    color: '#f1c40f',
+    highlightColor: '#ffeaa7',
+    description:
+      'Every threaded fastener that holds the engine together — valve-cover, head, intake, oil-pan, and bell-housing hardware. Isolate this system to see all the bolts and nuts on their own.',
+    meshNames: ['cover_bolts', 'head_bolts', 'intake_bolts', 'pan_bolts', 'bellhousing_bolts'],
+    explodeOffset: [0, 1.2, 0],
   },
 };
 

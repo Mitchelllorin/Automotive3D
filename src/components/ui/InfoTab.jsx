@@ -1,11 +1,10 @@
 /**
  * InfoTab – general information about the application and usage hints.
  */
-import useAppStore from '../../store/appStore';
+import { SUBSYSTEM_LIST } from '../../data/subsystems';
+import { COMPONENT_LIST } from '../../data/components';
 
 export default function InfoTab() {
-  const { animationsEnabled, toggleAnimations } = useAppStore();
-
   return (
     <div className="tab-content">
       <h2 className="section-title">About Automotive3D</h2>
@@ -13,10 +12,10 @@ export default function InfoTab() {
       <div className="info-card">
         <h3>What is this?</h3>
         <p>
-          Automotive3D is an interactive 3D learning application that lets you
-          explore the major systems of a generic passenger vehicle. You can
-          isolate individual subsystems, trigger exploded-view diagrams, and
-          simulate common fault conditions.
+          Automotive3D is an interactive 3D learning tool. The current model is a
+          procedurally-built inline-4 engine you can rotate, zoom, take apart, and
+          inspect part by part — right down to the bolts and nuts. More of the
+          vehicle is on the way; the app is built to drop in additional assemblies.
         </p>
       </div>
 
@@ -24,60 +23,46 @@ export default function InfoTab() {
         <h3>How to Use</h3>
         <ul className="info-list">
           <li>
-            <strong>Rotate</strong> – left-click and drag the 3D viewport.
+            <strong>Rotate</strong> – left-click and drag (or one-finger drag).
           </li>
           <li>
             <strong>Zoom</strong> – scroll wheel or pinch gesture.
           </li>
           <li>
-            <strong>Pan</strong> – right-click and drag.
+            <strong>Pan</strong> – right-click drag (or two-finger drag).
           </li>
           <li>
-            <strong>Systems tab</strong> – select a subsystem to highlight it,
-            then use <em>Isolate</em> to hide other systems or <em>Explode</em>{' '}
-            to see it separated from the vehicle.
+            <strong>Explode</strong> – drag the slider at the bottom to take the
+            engine apart and back together; bolts and covers lift off first.
           </li>
           <li>
-            <strong>Faults tab</strong> – toggle fault conditions to see
-            animated highlights and read diagnostic descriptions.
+            <strong>Systems tab</strong> – pick a sub-assembly, then <em>Isolate</em>{' '}
+            to dim the rest. Isolate <em>Bolts &amp; Nuts</em> to see every fastener.
+          </li>
+          <li>
+            <strong>Click any part</strong> – select it in 3D to read its function,
+            failure symptoms, and maintenance notes.
           </li>
         </ul>
       </div>
 
       <div className="info-card">
-        <h3>Subsystems Covered</h3>
+        <h3>Engine Sub-assemblies</h3>
         <ul className="info-list">
-          <li>🔴 Engine – block, pistons, crankshaft, camshaft, valves</li>
-          <li>🔵 Cooling – radiator, water pump, thermostat, fan, hoses</li>
-          <li>🟡 Electrical – battery, alternator, fuse box, starter</li>
-          <li>🟠 Fuel – tank, pump, injectors, throttle body, lines</li>
-          <li>⚪ Exhaust – manifold, catalytic converter, O₂ sensor, muffler</li>
-          <li>🟣 Suspension – struts, springs, control arms, sway bar</li>
+          {SUBSYSTEM_LIST.map((s) => (
+            <li key={s.id}>
+              <span style={{ color: s.color }}>■</span> {s.label} —{' '}
+              {s.meshNames.map((m) => m.replace(/_/g, ' ')).join(', ')}
+            </li>
+          ))}
         </ul>
-      </div>
-
-      <div className="info-card">
-        <h3>Animations</h3>
-        <ul className="info-list">
-          <li>🔥 Combustion cycle – orange spark particles above cylinders</li>
-          <li>💧 Coolant flow – blue particles looping through the cooling circuit</li>
-          <li>⚡ Electrical flow – yellow pulses from battery → fuse → loads</li>
-          <li>⛽ Fuel path – orange particles from tank through injectors</li>
-        </ul>
-
-        <button
-          className={`action-btn ${animationsEnabled ? 'active-action' : ''}`}
-          onClick={toggleAnimations}
-          style={{ marginTop: '0.75rem' }}
-        >
-          {animationsEnabled ? '⏸ Pause Animations' : '▶ Resume Animations'}
-        </button>
       </div>
 
       <div className="info-card info-footer">
         <p>
-          This is an MVP demonstration. Vehicle geometry is procedurally
-          generated for illustration purposes. No real OBDII or ECU data is used.
+          MVP demonstration — {COMPONENT_LIST.length} parts, all geometry
+          procedurally generated for illustration. Runs in any modern browser on
+          Windows and Android.
         </p>
       </div>
     </div>

@@ -30,8 +30,8 @@ export default function SystemsTab() {
 
   return (
     <div className="tab-content">
-      <h2 className="section-title">Vehicle Systems</h2>
-      <p className="section-hint">Select a subsystem to inspect it.</p>
+      <h2 className="section-title">Engine Systems</h2>
+      <p className="section-hint">Select a sub-assembly to isolate or explode it.</p>
 
       <div className="subsystem-grid">
         {SUBSYSTEM_LIST.map((sys) => (

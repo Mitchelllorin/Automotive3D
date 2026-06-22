@@ -9,9 +9,9 @@ function App() {
   return (
     <div className="app-layout">
       <header className="app-header">
-        <div className="app-logo">🚗</div>
+        <div className="app-logo">🔧</div>
         <h1 className="app-title">Automotive3D</h1>
-        <span className="app-subtitle">Interactive Vehicle Explorer</span>
+        <span className="app-subtitle">Interactive Engine Teardown</span>
       </header>
 
       <div className="app-body">

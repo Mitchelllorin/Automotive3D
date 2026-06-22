@@ -37,7 +37,7 @@ export default function PartsTab() {
     <div className="tab-content parts-tab">
       <h2 className="section-title">Component Browser</h2>
       <p className="section-hint">
-        {COMPONENT_LIST.length} parts across 6 systems — click any part to inspect it.
+        {COMPONENT_LIST.length} parts across {SUBSYSTEM_LIST.length} systems — click any part to inspect it.
       </p>
 
       <input

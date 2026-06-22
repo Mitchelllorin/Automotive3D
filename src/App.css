@@ -502,6 +502,331 @@
   color: #58a6ff;
 }
 
+/* ── Hover nameplate (docked top-right, clear of the model) ────────────────── */
+.hover-nameplate {
+  position: absolute;
+  top: 3.3rem;
+  right: 0.75rem;
+  pointer-events: none;
+  z-index: 8;
+  min-width: 188px;
+  max-width: 248px;
+  padding: 0.55rem 0.65rem;
+  background: rgba(13, 17, 23, 0.92);
+  border: 1px solid #30363d;
+  border-left: 3px solid var(--sys-color, #58a6ff);
+  border-radius: 9px;
+  backdrop-filter: blur(7px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: #c9d1d9;
+  animation: np-fade-in 0.12s ease-out;
+}
+
+@keyframes np-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.np-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.np-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sys-color, #58a6ff);
+  box-shadow: 0 0 8px var(--sys-color, #58a6ff);
+  flex: none;
+}
+
+.np-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f0f6fc;
+  line-height: 1.15;
+}
+
+.np-sys {
+  margin-top: 0.1rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--sys-color, #58a6ff);
+}
+
+.np-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.45rem;
+}
+
+.np-pill {
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 0.12rem 0.4rem;
+  border-radius: 5px;
+  background: rgba(88, 166, 255, 0.12);
+  border: 1px solid #21262d;
+  color: #adbac7;
+}
+
+.np-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.np-tag {
+  font-size: 0.62rem;
+  padding: 0.08rem 0.34rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #8b949e;
+}
+
+.np-hint {
+  margin-top: 0.45rem;
+  font-size: 0.62rem;
+  color: #6e7681;
+  font-style: italic;
+}
+
+/* ── Explode / teardown slider ────────────────────────────────────────────── */
+.explode-control {
+  position: absolute;
+  bottom: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: rgba(22, 27, 34, 0.9);
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 0.5rem 0.9rem;
+  backdrop-filter: blur(6px);
+  z-index: 6;
+  max-width: min(92%, 560px);
+  width: max-content;
+}
+
+.explode-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.explode-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: clamp(120px, 40vw, 320px);
+  height: 6px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #58a6ff, #f0883e);
+  outline: none;
+  cursor: pointer;
+}
+
+.explode-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f0f6fc;
+  border: 2px solid #58a6ff;
+  cursor: pointer;
+}
+
+.explode-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f0f6fc;
+  border: 2px solid #58a6ff;
+  cursor: pointer;
+}
+
+.explode-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #c9d1d9;
+  min-width: 2.6rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.explode-reset {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .explode-control {
+    bottom: 0.6rem;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+  }
+  .explode-reset {
+    display: none;
+  }
+}
+
+/* ── Engine run controls ──────────────────────────────────────────────────── */
+.engine-control {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  backdrop-filter: blur(6px);
+  z-index: 6;
+  width: 240px;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.engine-control.is-running {
+  border-color: #2ea043;
+  box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.5), 0 0 18px rgba(46, 160, 67, 0.25);
+}
+
+.engine-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.engine-power {
+  cursor: pointer;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: rgba(33, 38, 45, 0.95);
+  color: #c9d1d9;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.4rem 0.7rem;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.engine-power.on {
+  background: #2ea043;
+  border-color: #3fb950;
+  color: #fff;
+}
+
+.engine-power:not(.on):hover {
+  border-color: #2ea043;
+  color: #3fb950;
+}
+
+.rpm-readout {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #f0f6fc;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.engine-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: #8b949e;
+}
+
+.engine-slider-row > span:first-child {
+  width: 4.2rem;
+  flex-shrink: 0;
+}
+
+.engine-slider-row input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 5px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #2ea043, #f0883e);
+  outline: none;
+  cursor: pointer;
+}
+
+.engine-slider-row input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f0f6fc;
+  border: 2px solid #2ea043;
+  cursor: pointer;
+}
+
+.engine-slider-row input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #f0f6fc;
+  border: 2px solid #2ea043;
+  cursor: pointer;
+}
+
+.engine-val {
+  width: 3rem;
+  text-align: right;
+  color: #c9d1d9;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.engine-cutaway {
+  cursor: pointer;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: rgba(33, 38, 45, 0.95);
+  color: #c9d1d9;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.38rem 0.6rem;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.engine-cutaway.on {
+  background: #1f6feb;
+  border-color: #58a6ff;
+  color: #fff;
+}
+
+.engine-cutaway:not(.on):hover {
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+@media (max-width: 640px) {
+  .engine-control {
+    width: 200px;
+    top: 0.6rem;
+    left: 0.6rem;
+  }
+}
+
 /* ── Parts tab ───────────────────────────────────────────────────────────── */
 .parts-search {
   width: 100%;
