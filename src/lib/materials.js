@@ -8,12 +8,17 @@
  * procedural normal/albedo/roughness maps from textures.js.
  */
 export const MATERIALS = {
-  // Painted cast-iron block (classic Chevy orange) — slightly chalky, low metal.
-  paintedBlock: { color: '#bf4a1e', metalness: 0.2, roughness: 0.58, envMapIntensity: 0.6, finish: 'matte' },
-  paintedBlockDk: { color: '#9c3b13', metalness: 0.2, roughness: 0.62, envMapIntensity: 0.6, finish: 'matte' },
+  // Painted cast-iron block (classic Chevy orange engine enamel) — paint is a
+  // dielectric, so metalness 0 and a semi-gloss roughness with a faint clearcoat
+  // sheen. The `painted` finish keeps the casting grain to a whisper.
+  paintedBlock: { color: '#c64a1b', metalness: 0.0, roughness: 0.56, envMapIntensity: 0.8, finish: 'painted' },
+  paintedBlockDk: { color: '#a83c13', metalness: 0.0, roughness: 0.6, envMapIntensity: 0.75, finish: 'painted' },
 
   // Bare cast iron (headers, bell housing, brackets) — dark, rough, oxidised.
   castIron: { color: '#56595e', metalness: 0.45, roughness: 0.74, envMapIntensity: 0.7, finish: 'rough' },
+  // Bare/raw cast iron faces (machined-then-cast, casting-number pad) — mid grey,
+  // matte, so a stamped number actually reads against it.
+  castIronRaw: { color: '#6f747b', metalness: 0.5, roughness: 0.64, envMapIntensity: 0.85, finish: 'castFine' },
 
   // Cast aluminium (intake, water pump, alternator, carb) — satin grey.
   castAluminum: { color: '#b4b9c1', metalness: 0.6, roughness: 0.5, envMapIntensity: 1.0, finish: 'matte' },

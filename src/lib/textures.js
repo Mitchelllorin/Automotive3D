@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three';
 
-const SIZE = 256;
+const SIZE = 384; // procedural map resolution — crisper cast grain on big surfaces
 
 /** Small, fast, repeatable PRNG so the grain looks the same every reload. */
 function mulberry32(seed) {
@@ -186,6 +186,12 @@ export const ENGINE_TEXTURES = {
   castNormal: toNormal(castField, SIZE, 2.2, [3, 3]),
   castAlbedo: toAlbedo(castField, SIZE, 0.72, [3, 3]),
   castRough: toRoughness(castField, SIZE, [3, 3]),
+  // Finer, subtler cast grain — for painted enamel (paint fills most of the sand
+  // texture) and for machined-then-cast faces. Tiles tighter so big surfaces
+  // don't read as low-frequency "bark" blotches.
+  castNormalFine: toNormal(castField, SIZE, 1.2, [9, 9]),
+  castAlbedoFine: toAlbedo(castField, SIZE, 0.9, [9, 9]),
+  castRoughFine: toRoughness(castField, SIZE, [9, 9]),
   // Machined / brushed faces: fine directional lines.
   brushedNormal: toNormal(brushField, SIZE, 1.1, [3, 4]),
   brushedAlbedo: toAlbedo(brushField, SIZE, 0.86, [3, 4]),
@@ -223,6 +229,27 @@ export const FINISHES = {
     normalMap: ENGINE_TEXTURES.rubberNormal,
     normalScale: [0.7, 0.7],
     map: ENGINE_TEXTURES.rubberAlbedo,
+  },
+  // Engine enamel over a sand casting: real automotive paint is a semi-gloss
+  // *clearcoated* layer — a wet sheen on top of the colour — that still lets the
+  // orange-peel of the sand casting read through underneath. The clearcoat gives
+  // the block that "freshly painted metal" look instead of dry plastic; the
+  // normals are kept light so the grain only whispers through the gloss.
+  painted: {
+    normalMap: ENGINE_TEXTURES.castNormalFine,
+    normalScale: [0.4, 0.4],
+    map: ENGINE_TEXTURES.castAlbedoFine,
+    roughnessMap: ENGINE_TEXTURES.castRoughFine,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.6,
+  },
+  // Bare cast iron, finer/subtler than `rough` — machined-then-cast faces,
+  // bellhousing flanges, raised casting-number pads.
+  castFine: {
+    normalMap: ENGINE_TEXTURES.castNormalFine,
+    normalScale: [0.6, 0.6],
+    map: ENGINE_TEXTURES.castAlbedoFine,
+    roughnessMap: ENGINE_TEXTURES.castRoughFine,
   },
   smooth: {},
 };

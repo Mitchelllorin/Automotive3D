@@ -1,0 +1,11 @@
+{
+  "appId": "com.automotive3d.app",
+  "appName": "Automotive3D",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#10141b"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -19,8 +19,10 @@ import { explodeState, ease } from '../../lib/explodeState';
 import { focusState } from '../../lib/focusState';
 import { FINISHES } from '../../lib/textures';
 import { MATERIALS } from '../../lib/materials';
+import { getVariantLook } from '../../data/products';
 import useAppStore from '../../store/appStore';
 import { PartContext } from './partContext';
+import { BuildContext } from '../../lib/engineInstance';
 
 // Make <roundedBoxGeometry> available as a JSX element so cast/machined parts
 // can carry the small fillets real metal has instead of razor-sharp toy edges.
@@ -54,11 +56,30 @@ export default function Part({
 }) {
   const groupRef = useRef();
   const [hovered, setHovered] = useState(false);
+  // Cached fade state so we can skip the per-frame material walk once settled.
+  const opacityRef = useRef(1);
+  const targetRef = useRef(1);
+  const lastFRef = useRef(-1);
 
   const selectedComponent = useAppStore((s) => s.selectedComponent);
   const selectedSubsystem = useAppStore((s) => s.selectedSubsystem);
   const isIsolated = useAppStore((s) => s.isIsolated);
   const peek = useAppStore((s) => s.peek);
+  // Active Garage variant for this part → material override flowed to <Surface swap>.
+  // In the arena, a BuildContext overrides the store so each engine shows its own
+  // build; the normal single-engine view (no provider) reads the store as before.
+  const buildOverride = useContext(BuildContext);
+  const storeVariantId = useAppStore((s) => s.partVariants[name]);
+  // Ghost preview: a part being tried in the Build tab shows here before commit.
+  // Only on the main editable engine (no BuildContext), never on arena engines.
+  const preview = useAppStore((s) => s.preview);
+  const previewing = !buildOverride && preview != null && preview.category === name;
+  const variantId = previewing
+    ? preview.variantId
+    : buildOverride
+    ? buildOverride[name]
+    : storeVariantId;
+  const look = getVariantLook(name, variantId);
   const setSelectedComponent = useAppStore((s) => s.setSelectedComponent);
   const selectSubsystem = useAppStore((s) => s.selectSubsystem);
   const setHoveredComponent = useAppStore((s) => s.setHoveredComponent);
@@ -83,52 +104,58 @@ export default function Part({
   useFrame((state, dt) => {
     const g = groupRef.current;
     if (!g) return;
+    // Reposition only when the explode amount actually changes (idle = no work).
     const f = explodeState.factor;
-    g.position.set(
-      position[0] + explode[0] * f,
-      position[1] + explode[1] * f,
-      position[2] + explode[2] * f
-    );
-
-    // World anchor of this part (matrix is refreshed by getWorldPosition).
-    g.getWorldPosition(_wp);
-
-    // Publish the focus anchor for depth fade + cutaway tracking: a selected part
-    // writes it directly; the parts of a focused system feed a centroid that
-    // FocusDriver averages and finalizes.
-    if (selected) {
-      focusState.point.copy(_wp);
-      focusState.active = true;
-    } else if (inFocusSystem) {
-      focusState._sum.add(_wp);
-      focusState._count += 1;
+    if (f !== lastFRef.current) {
+      lastFRef.current = f;
+      g.position.set(
+        position[0] + explode[0] * f,
+        position[1] + explode[1] * f,
+        position[2] + explode[2] * f
+      );
     }
 
-    // Baseline fade (system / isolate / peek), then layer depth-aware fade on top:
-    // parts in front of the focus anchor — between it and the camera — fade hard
-    // so you look "through" the engine toward the selection.
+    // World position + focus publishing are only needed when something is focused.
+    const focusActive = focusState.active;
     let target = dimLevel;
-    if (focusState.active && !isFocusMember) {
-      state.camera.getWorldDirection(_dir); // unit vector pointing into the scene
-      const delta = _wp.dot(_dir) - focusState.point.dot(_dir); // <0 ⇒ occluder
-      const t = THREE.MathUtils.smoothstep(delta, -0.18, -0.02);
-      const depthFade = 0.1 + (0.85 - 0.1) * t; // front → 0.1, at/behind → 0.85
-      if (depthFade < target) target = depthFade;
+    if (selected || inFocusSystem || focusActive) {
+      g.getWorldPosition(_wp);
+      if (selected) {
+        focusState.point.copy(_wp);
+        focusState.active = true;
+      } else if (inFocusSystem) {
+        focusState._sum.add(_wp);
+        focusState._count += 1;
+      }
+      // Parts in front of the focus anchor fade so you look "through" to the selection.
+      if (focusActive && !isFocusMember) {
+        state.camera.getWorldDirection(_dir);
+        const delta = _wp.dot(_dir) - focusState.point.dot(_dir);
+        const t = THREE.MathUtils.smoothstep(delta, -0.18, -0.02);
+        const depthFade = 0.1 + 0.75 * t;
+        if (depthFade < target) target = depthFade;
+      }
     }
 
-    // Ease every material under this part toward the target opacity. Flipping
-    // `transparent` needs a shader recompile, so only touch it on a real change.
-    g.traverse((o) => {
-      if (!o.isMesh || !o.material) return;
-      const m = o.material;
-      m.opacity = ease(m.opacity, target, dt, 9);
-      const wantTransparent = m.opacity < 0.985;
-      if (m.transparent !== wantTransparent) {
-        m.transparent = wantTransparent;
-        m.needsUpdate = true;
-      }
-      m.depthWrite = !wantTransparent;
-    });
+    // Ease ONE cached opacity for the whole part and only walk the meshes while it's
+    // actually changing — once settled at target, this does nothing each frame.
+    const cur = opacityRef.current;
+    if (Math.abs(cur - target) > 0.004 || targetRef.current !== target) {
+      targetRef.current = target;
+      const next = ease(cur, target, dt, 9);
+      opacityRef.current = next;
+      const wantTransparent = next < 0.985;
+      g.traverse((o) => {
+        if (!o.isMesh || !o.material) return;
+        const m = o.material;
+        m.opacity = next;
+        if (m.transparent !== wantTransparent) {
+          m.transparent = wantTransparent;
+          m.needsUpdate = true;
+        }
+        m.depthWrite = !wantTransparent;
+      });
+    }
   });
 
   const handleClick = (e) => {
@@ -157,7 +184,7 @@ export default function Part({
         onPointerOver={handleOver}
         onPointerOut={handleOut}
       >
-        <PartContext.Provider value={{ selected, hovered, highlight: HIGHLIGHT }}>
+        <PartContext.Provider value={{ selected, hovered, highlight: HIGHLIGHT, look, ghost: previewing }}>
           {children}
         </PartContext.Provider>
       </group>
@@ -177,24 +204,41 @@ export function Surface({
   envMapIntensity,
   emissive,
   finish,
+  swap = false,
   children,
   ...meshProps
 }) {
-  const { selected, hovered, highlight } = useContext(PartContext);
+  const { selected, hovered, highlight, look, ghost } = useContext(PartContext);
+  // A `swap` surface inside a part with an active Garage variant takes the
+  // variant's look *authoritatively* — fields it omits fall back to the look's
+  // named mat preset, then defaults — so each variant fully defines the finish.
+  // Non-swap surfaces (bolts, internals) keep their hand-authored material.
+  const ov = swap ? look : null;
+  const iMat = ov ? ov.mat : mat;
+  const iColor = ov ? ov.color : color;
+  const iMetal = ov ? ov.metalness : metalness;
+  const iRough = ov ? ov.roughness : roughness;
+  const iEnv = ov ? ov.envMapIntensity : envMapIntensity;
+  const iFinish = ov ? ov.finish : finish;
+
   // Resolve a named material preset, then let explicit props override it.
-  const preset = (mat && MATERIALS[mat]) || null;
-  const rColor = color ?? preset?.color ?? '#8a929c';
-  const rMetal = metalness ?? preset?.metalness ?? 0.6;
-  const rRough = roughness ?? preset?.roughness ?? 0.45;
-  const rEnv = envMapIntensity ?? preset?.envMapIntensity ?? 1.15;
-  const rFinish = finish ?? preset?.finish ?? 'matte';
+  const preset = (iMat && MATERIALS[iMat]) || null;
+  const rColor = iColor ?? preset?.color ?? '#8a929c';
+  const rMetal = iMetal ?? preset?.metalness ?? 0.6;
+  const rRough = iRough ?? preset?.roughness ?? 0.45;
+  const rEnv = iEnv ?? preset?.envMapIntensity ?? 1.15;
+  const rFinish = iFinish ?? preset?.finish ?? 'matte';
   const tex = FINISHES[rFinish] ?? FINISHES.matte;
 
   let mColor = rColor;
   let mEmissive = emissive ?? '#000000';
   let mEmissiveIntensity = emissive ? 0.25 : 0;
 
-  if (selected) {
+  if (ghost) {
+    // Previewing this part — a cyan glow marks it as a not-yet-committed ghost.
+    mEmissive = '#36e0ff';
+    mEmissiveIntensity = 0.55;
+  } else if (selected) {
     mEmissive = highlight;
     mEmissiveIntensity = 0.85;
   } else if (hovered) {
@@ -204,21 +248,28 @@ export function Surface({
 
   // Opacity / transparency are driven imperatively by the enclosing <Part> every
   // frame (system fade + depth-aware fade), so they're intentionally omitted here.
+  const matProps = {
+    color: mColor,
+    metalness: rMetal,
+    roughness: rRough,
+    envMapIntensity: rEnv,
+    emissive: mEmissive,
+    emissiveIntensity: mEmissiveIntensity,
+    map: tex.map ?? null,
+    normalMap: tex.normalMap ?? null,
+    normalScale: tex.normalScale ?? [1, 1],
+    roughnessMap: tex.roughnessMap ?? null,
+  };
+  // Painted enamel uses a physical material with a clearcoat so the block reads as
+  // wet, freshly-painted metal; everything else stays on the cheaper standard mat.
   return (
     <mesh castShadow receiveShadow {...meshProps}>
       {children}
-      <meshStandardMaterial
-        color={mColor}
-        metalness={rMetal}
-        roughness={rRough}
-        envMapIntensity={rEnv}
-        emissive={mEmissive}
-        emissiveIntensity={mEmissiveIntensity}
-        map={tex.map ?? null}
-        normalMap={tex.normalMap ?? null}
-        normalScale={tex.normalScale ?? [1, 1]}
-        roughnessMap={tex.roughnessMap ?? null}
-      />
+      {tex.clearcoat ? (
+        <meshPhysicalMaterial {...matProps} clearcoat={tex.clearcoat} clearcoatRoughness={tex.clearcoatRoughness ?? 0.4} />
+      ) : (
+        <meshStandardMaterial {...matProps} />
+      )}
     </mesh>
   );
 }

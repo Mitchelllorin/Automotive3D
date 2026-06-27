@@ -14,14 +14,17 @@
  * Add more assemblies later = drop another file into src/assemblies and register
  * it in registry.js.
  */
-import { useRef } from 'react';
+import { useRef, useContext } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import Part, { Surface, RBox } from '../../components/scene/Part';
 import { HexBolt, HexNut } from '../../components/scene/fasteners';
 import { boltRect } from '../../components/scene/boltLayout';
 import { simState } from '../../lib/simState';
-import { cylinderPistonDrop, CRANK_THROW, STROKE, CYLINDERS } from '../../data/engineSpec';
+import { explodeState } from '../../lib/explodeState';
+import { FailureContext, CamContext } from '../../lib/engineInstance';
+import FailureEffects from '../../components/scene/FailureEffects';
+import { cylinderPistonDrop, CRANK_THROW, STROKE, CYLINDERS, valveLift } from '../../data/engineSpec';
 import { textTexture } from '../../lib/decals';
 
 // Real Gen-I 350 casting number, baked once into a texture for the block stamp.
@@ -65,6 +68,23 @@ function Spin({ rate = 1, children, ...props }) {
 // Cylinder id layout matching engineSpec: +X is the front (balancer) end, so the
 // driver bank (odd) runs 1,3,5,7 and passenger (even) 2,4,6,8 from +X to -X.
 const BANK_IDS = { 1: [1, 3, 5, 7], '-1': [2, 4, 6, 8] };
+
+/**
+ * BankExplode – teardown helper for bank-mounted parts. Lifts its children along
+ * the bank's own up-axis (the deck normal) rather than straight up, so during a
+ * teardown they travel up AND out — the two banks diverging left/right from the
+ * valley, the way an exploded-view diagram reads. It must live INSIDE the rotated
+ * bank <group>, where a local +Y translation already points up-and-out in world
+ * space. `amount` is the scene-unit travel at full explode (factor = 1); stacking
+ * amounts orders the layers (pistons < head < bolts < valvetrain < cover).
+ */
+function BankExplode({ amount, children }) {
+  const ref = useRef();
+  useFrame(() => {
+    if (ref.current) ref.current.position.y = explodeState.factor * amount;
+  });
+  return <group ref={ref}>{children}</group>;
+}
 
 /**
  * Turned – a lathe (revolved) Surface built from a [radius, y] profile. The
@@ -136,13 +156,14 @@ function Hose({
   closed = false,
   segments = 40,
   finish = 'rubber',
+  swap = false,
 }) {
   const curve = new THREE.CatmullRomCurve3(
     points.map((p) => new THREE.Vector3(p[0], p[1], p[2])),
     closed
   );
   return (
-    <Surface color={color} metalness={metalness} roughness={roughness} finish={finish}>
+    <Surface color={color} metalness={metalness} roughness={roughness} finish={finish} swap={swap}>
       <tubeGeometry args={[curve, segments, radius, 10, closed]} />
     </Surface>
   );
@@ -170,36 +191,61 @@ function Pulley({ position, r = 0.2, color = C.steel }) {
 }
 
 // ── Block (V) ──────────────────────────────────────────────────────────────────
+/**
+ * Bore – a machined opening (bolt hole, lifter bore, cam tunnel, freeze-plug
+ * counterbore). A near-black recessed cavity with a subtle cast chamfer at the
+ * mouth, so it reads as a real drilled hole — NOT a bright stud. The mouth sits
+ * at the group origin and the cavity drills toward local −Y, so the caller orients
+ * −Y *into* the casting (no rotation = straight down; ±90° about z/x for a
+ * front/rear/side face).
+ */
+function Bore({ position, rotation = [0, 0, 0], r = 0.03, depth = 0.07, seg = 12 }) {
+  return (
+    <group position={position} rotation={rotation}>
+      {/* faint machined chamfer ring at the mouth (matte, not mirror) */}
+      <Surface mat="castIronRaw" position={[0, -0.004, 0]}>
+        <cylinderGeometry args={[r * 1.35, r, 0.016, seg, 1, true]} />
+      </Surface>
+      {/* dark recessed cavity drilling into the iron */}
+      <mesh position={[0, -depth / 2 - 0.012, 0]}>
+        <cylinderGeometry args={[r, r * 0.82, depth, seg]} />
+        <meshStandardMaterial color="#070809" metalness={0.15} roughness={0.98} />
+      </mesh>
+    </group>
+  );
+}
+
 function CylinderBlock() {
   return (
     <Part name="engine_block" system="block" position={[0, 0, 0]} explode={[0, 0, 0]}>
-      {/* Lower crankcase */}
-      <Surface color={C.block} metalness={0.35} roughness={0.5} position={[0, -0.18, 0]}>
-        <RBox args={[2.25, 0.62, 0.92]} />
+      {/* ── Crankcase ───────────────────────────────────────────── */}
+      <Surface mat="paintedBlock" position={[0, -0.15, 0]}>
+        <RBox args={[2.24, 0.58, 0.84]} />
       </Surface>
-      {/* Oil-pan rail */}
-      <Surface color={C.blockDark} metalness={0.4} roughness={0.5} position={[0, -0.48, 0]}>
-        <RBox args={[2.3, 0.06, 1.0]} />
+      {/* Skirt flares out toward the pan rail (darker in the shadowed belly) */}
+      <Surface mat="paintedBlockDk" position={[0, -0.36, 0]}>
+        <RBox args={[2.28, 0.18, 0.96]} />
+      </Surface>
+      {/* Oil-pan rail flange */}
+      <Surface mat="paintedBlockDk" position={[0, -0.47, 0]}>
+        <RBox args={[2.34, 0.05, 1.04]} />
       </Surface>
 
       {/* The two cylinder banks splayed into a V */}
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
           {/* Bank casting */}
-          <Surface color={C.block} metalness={0.35} roughness={0.52} position={[0, 0.3, 0]}>
+          <Surface mat="paintedBlock" position={[0, 0.3, 0]}>
             <RBox args={[2.18, 0.55, 0.46]} />
           </Surface>
-          {/* Machined deck — bright machined-steel finish with tool-mark grain */}
+          {/* Machined deck — bright machined face the head bolts to */}
           <Surface mat="machinedSteel" finish="machined" position={[0, 0.58, 0]}>
             <RBox args={[2.22, 0.05, 0.5]} />
           </Surface>
           {/* Head-bolt holes drilled down each side of the bores */}
           {[-0.85, -0.3, 0.3, 0.85].map((x) =>
             [-0.2, 0.2].map((z) => (
-              <mesh key={`${x}-${z}`} position={[x, 0.6, z]}>
-                <cylinderGeometry args={[0.028, 0.028, 0.06, 10]} />
-                <meshStandardMaterial color="#0b0c0e" metalness={0.5} roughness={0.85} />
-              </mesh>
+              <Bore key={`${x}-${z}`} position={[x, 0.59, z]} r={0.026} depth={0.08} />
             ))
           )}
           {/* Open bores through the deck — honed cylinder wall + dark opening */}
@@ -230,65 +276,95 @@ function CylinderBlock() {
         </group>
       ))}
 
-      {/* Front face / timing cover */}
-      <Surface color={C.deck} metalness={0.5} roughness={0.42} position={[1.16, -0.05, 0]}>
-        <RBox args={[0.06, 0.7, 0.8]} />
+      {/* ── Lifter valley between the banks ──────────────────────── */}
+      <Surface mat="paintedBlockDk" position={[0, 0.42, 0]}>
+        <RBox args={[1.98, 0.07, 0.42]} />
       </Surface>
-      {/* Motor-mount bosses */}
+      {/* 16 lifter bores — two rows of 8 (one pair per cylinder) down the valley */}
+      {[-0.12, 0.12].map((z) =>
+        [-0.84, -0.6, -0.36, -0.12, 0.12, 0.36, 0.6, 0.84].map((x) => (
+          <Bore key={`lift${x}${z}`} position={[x, 0.45, z]} r={0.032} depth={0.07} />
+        ))
+      )}
+      {/* Distributor bore at the rear of the valley */}
+      <Bore position={[-0.97, 0.36, 0]} rotation={[0.45, 0, 0]} r={0.075} depth={0.14} seg={18} />
+
+      {/* ── Front face / timing-cover mounting ───────────────────── */}
+      <Surface mat="paintedBlock" position={[1.16, -0.02, 0]}>
+        <RBox args={[0.06, 0.74, 0.8]} />
+      </Surface>
+      {/* Cam tunnel + crank-snout bores through the front */}
+      <Bore position={[1.21, 0.12, 0]} rotation={[0, 0, Math.PI / 2]} r={0.075} depth={0.12} seg={20} />
+      <Bore position={[1.21, -0.18, 0]} rotation={[0, 0, Math.PI / 2]} r={0.06} depth={0.12} seg={18} />
+      {/* Timing-cover bolt holes ringing the front */}
+      {[[0, 0.3], [0.3, 0.16], [0.3, -0.22], [0, -0.34], [-0.3, -0.22], [-0.3, 0.16]].map(([z, y], i) => (
+        <Bore key={`tc${i}`} position={[1.21, y, z]} rotation={[0, 0, Math.PI / 2]} r={0.018} depth={0.05} seg={8} />
+      ))}
+
+      {/* ── Rear: bellhousing flange + bolt pattern ──────────────── */}
+      <Surface mat="castIronRaw" position={[-1.16, -0.04, 0]}>
+        <RBox args={[0.06, 0.86, 0.98]} />
+      </Surface>
+      {[[0.34, 0.42], [0.34, -0.42], [-0.34, 0.44], [-0.34, -0.44], [0.36, 0], [-0.36, 0]].map(([y, z], i) => (
+        <Bore key={`bf${i}`} position={[-1.21, y - 0.04, z]} rotation={[0, 0, Math.PI / 2]} r={0.028} depth={0.05} seg={10} />
+      ))}
+
+      {/* ── Side details ─────────────────────────────────────────── */}
+      {/* Motor-mount pads — proud cast bosses with a machined mating face */}
       {[-1, 1].map((s) => (
-        <Surface key={s} color={C.block} metalness={0.4} roughness={0.55} position={[s * 0.55, -0.2, s * 0.5]}>
-          <RBox args={[0.3, 0.22, 0.12]} />
+        <group key={s}>
+          <Surface mat="paintedBlock" position={[s * 0.55, -0.24, s * 0.5]}>
+            <RBox args={[0.42, 0.34, 0.16]} />
+          </Surface>
+          <Surface mat="castIronRaw" finish="machined" position={[s * 0.55, -0.24, s * 0.585]}>
+            <RBox args={[0.34, 0.27, 0.02]} />
+          </Surface>
+        </group>
+      ))}
+      {/* A recessed (darker) core-plug band with the freeze plugs sunk into it */}
+      {[1, -1].map((side) => (
+        <Surface key={`band${side}`} mat="paintedBlockDk" position={[0.05, -0.11, side * 0.45]}>
+          <RBox args={[1.55, 0.17, 0.035]} />
         </Surface>
       ))}
-
-      {/* Cast strengthening ribs down the crankcase sides */}
       {[1, -1].map((side) =>
-        [-0.78, -0.34, 0.42, 0.82].map((x) => (
-          <Surface key={`${side}-${x}`} mat="paintedBlock" position={[x, -0.2, side * 0.47]}>
-            <RBox args={[0.045, 0.42, 0.04]} />
+        [-0.62, -0.05, 0.52].map((x) => (
+          <Surface key={`fp${side}${x}`} mat="steel" finish="machined" position={[x + 0.05, -0.11, side * 0.47]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.068, 0.068, 0.03, 18]} />
           </Surface>
         ))
       )}
-
-      {/* Freeze (core) plugs — three steel cups per side on the crankcase */}
-      {[1, -1].map((side) =>
-        [-0.6, 0, 0.6].map((x) => (
-          <Surface key={`fp${side}${x}`} mat="steel" position={[x, -0.12, side * 0.475]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.075, 0.075, 0.035, 18]} />
+      {/* Cast strengthening ribs + a horizontal web — what turns the flat slab
+          into a ribbed iron casting */}
+      {[1, -1].map((side) => (
+        <group key={`ribs${side}`}>
+          <Surface mat="paintedBlock" position={[0.02, -0.33, side * 0.45]}>
+            <RBox args={[1.96, 0.05, 0.07]} />
           </Surface>
-        ))
-      )}
-
-      {/* Bellhousing flange at the rear of the block + bolt bosses */}
-      <Surface mat="castIron" position={[-1.16, -0.05, 0]}>
-        <RBox args={[0.06, 0.84, 0.96]} />
-      </Surface>
-      {[
-        [-0.32, 0.42],
-        [0.3, 0.42],
-        [-0.32, -0.42],
-        [0.3, -0.42],
-        [0.34, 0],
-        [-0.36, 0],
-      ].map(([y, z], i) => (
-        <mesh key={`bf${i}`} position={[-1.2, y - 0.05, z]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.03, 0.03, 0.05, 8]} />
-          <meshStandardMaterial color="#0b0c0e" metalness={0.5} roughness={0.85} />
-        </mesh>
+          {[-0.86, -0.52, -0.18, 0.18, 0.52, 0.86].map((x) => (
+            <Surface key={x} mat="paintedBlock" position={[x, -0.3, side * 0.45]}>
+              <RBox args={[0.07, 0.36, 0.08]} />
+            </Surface>
+          ))}
+        </group>
       ))}
-
-      {/* Recessed lifter valley floor between the banks */}
-      <Surface mat="paintedBlockDk" position={[0, 0.42, 0]}>
-        <RBox args={[1.96, 0.08, 0.4]} />
+      {/* Oil-filter mounting boss, lower driver side */}
+      <Surface mat="paintedBlock" position={[-0.95, -0.3, 0.46]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.1, 0.11, 0.1, 20]} />
       </Surface>
-
-      {/* Fuel-pump mounting pad, front passenger side */}
-      <Surface mat="paintedBlock" position={[1.04, -0.32, -0.42]}>
-        <RBox args={[0.2, 0.22, 0.12]} />
+      {/* Fuel-pump pad + pushrod hole, front passenger side */}
+      <Surface mat="paintedBlock" position={[1.0, -0.3, -0.44]}>
+        <RBox args={[0.22, 0.24, 0.06]} />
       </Surface>
+      <Bore position={[1.0, -0.3, -0.49]} rotation={[Math.PI / 2, 0, 0]} r={0.028} depth={0.05} seg={10} />
+      {/* Dipstick tube hole, driver side */}
+      <Bore position={[0.66, -0.34, 0.43]} rotation={[Math.PI / 2, 0, 0]} r={0.02} depth={0.05} seg={8} />
 
-      {/* Readable casting number on the crankcase side */}
-      <Decal tex={CASTING_TEX} position={[0.2, -0.3, 0.465]} rotation={[0, 0, 0]} />
+      {/* ── Casting number — raised bare-iron pad so the stamp reads ─ */}
+      <Surface mat="castIronRaw" position={[-0.32, -0.26, 0.45]}>
+        <RBox args={[0.7, 0.22, 0.02]} />
+      </Surface>
+      <Decal tex={CASTING_TEX} position={[-0.32, -0.26, 0.463]} size={[0.64, 0.16]} />
     </Part>
   );
 }
@@ -419,12 +495,14 @@ function AnimatedPiston({ id, x }) {
 
 function Pistons() {
   return (
-    <Part name="pistons" system="block" position={[0, 0, 0]} explode={[0, 1.6, 0]}>
+    <Part name="pistons" system="block" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
-          {BANK_X.map((x, i) => (
-            <AnimatedPiston key={x} id={BANK_IDS[side][3 - i]} x={x} />
-          ))}
+          <BankExplode amount={1.6}>
+            {BANK_X.map((x, i) => (
+              <AnimatedPiston key={x} id={BANK_IDS[side][3 - i]} x={x} />
+            ))}
+          </BankExplode>
         </group>
       ))}
     </Part>
@@ -435,6 +513,7 @@ function Pistons() {
  *  stroke, so the 8 chambers flash in firing order while the engine runs. */
 function Flash({ id, position }) {
   const ref = useRef();
+  const fs = useContext(FailureContext);
   useFrame(() => {
     const m = ref.current;
     if (!m) return;
@@ -442,13 +521,29 @@ function Flash({ id, position }) {
       m.visible = false;
       return;
     }
+    // A holed piston misfires — that cylinder stops firing entirely.
+    if (fs.holed && id === 1) {
+      m.visible = false;
+      return;
+    }
     const deg = (((simState.crankAngle * 180) / Math.PI) % 720 + 720) % 720;
     const local = (deg - CYLINDERS[id].powerStrokeDeg + 720) % 720;
     const f = local < 70 ? Math.pow(1 - local / 70, 1.5) : 0;
     m.visible = f > 0.02;
-    m.material.emissiveIntensity = f * 5;
+    if (fs.detonation && f > 0.01) {
+      // Knock: hotter, brighter, erratic flash — combustion light off before the spark.
+      const knock = 0.7 + Math.random() * 1.1;
+      m.material.emissive.setHex(0xfff1d6);
+      m.material.color.setHex(0xfff1d6);
+      m.material.emissiveIntensity = f * 7 * knock;
+      m.scale.setScalar((0.07 + f * 0.22) * 1.2);
+    } else {
+      m.material.emissive.setHex(0xff7a1a);
+      m.material.color.setHex(0xff7a1a);
+      m.material.emissiveIntensity = f * 5;
+      m.scale.setScalar(0.07 + f * 0.2);
+    }
     m.material.opacity = 0.55 + f * 0.4;
-    m.scale.setScalar(0.07 + f * 0.2);
   });
   return (
     <mesh ref={ref} position={position} visible={false}>
@@ -511,18 +606,20 @@ function Camshaft() {
 // ── Heads + valve covers ────────────────────────────────────────────────────────
 function CylinderHeads() {
   return (
-    <Part name="cylinder_head" system="head" position={[0, 0, 0]} explode={[0, 1.7, 0]}>
+    <Part name="cylinder_head" system="head" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
-          <Surface color={C.head} metalness={0.35} roughness={0.5} position={[0, 0.74, 0]}>
-            <RBox args={[2.16, 0.3, 0.52]} />
-          </Surface>
-          {/* Exhaust port stubs on the outboard face */}
-          {BANK_X.map((x) => (
-            <Surface key={x} color={C.head} metalness={0.35} roughness={0.5} position={[x, 0.72, 0.28]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.07, 0.07, 0.12, 12]} />
+          <BankExplode amount={2.2}>
+            <Surface color={C.head} metalness={0.35} roughness={0.5} position={[0, 0.74, 0]}>
+              <RBox args={[2.16, 0.3, 0.52]} />
             </Surface>
-          ))}
+            {/* Exhaust port stubs on the outboard face */}
+            {BANK_X.map((x) => (
+              <Surface key={x} color={C.head} metalness={0.35} roughness={0.5} position={[x, 0.72, 0.28]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.07, 0.07, 0.12, 12]} />
+              </Surface>
+            ))}
+          </BankExplode>
         </group>
       ))}
     </Part>
@@ -531,20 +628,22 @@ function CylinderHeads() {
 
 function ValveCovers() {
   return (
-    <Part name="valve_cover" system="head" position={[0, 0, 0]} explode={[0, 2.7, 0]}>
+    <Part name="valve_cover" system="head" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
-          {/* Chrome valve cover */}
-          <Surface color={C.chrome} metalness={0.92} roughness={0.12} position={[0, 0.96, 0]} finish="smooth">
-            <RBox args={[2.0, 0.24, 0.46]} />
-          </Surface>
-          <Surface color={C.chrome} metalness={0.92} roughness={0.12} position={[0, 1.1, 0]} finish="smooth">
-            <RBox args={[1.9, 0.06, 0.36]} />
-          </Surface>
-          {/* Oil cap on the front cover */}
-          <Surface color={C.chrome} metalness={0.9} roughness={0.15} position={[0.85, 1.12, 0]} finish="smooth">
-            <cylinderGeometry args={[0.08, 0.08, 0.08, 16]} />
-          </Surface>
+          <BankExplode amount={3.9}>
+            {/* Chrome valve cover (swappable: chrome / black crinkle / polished / orange) */}
+            <Surface swap color={C.chrome} metalness={0.92} roughness={0.12} position={[0, 0.96, 0]} finish="smooth">
+              <RBox args={[2.0, 0.24, 0.46]} />
+            </Surface>
+            <Surface swap color={C.chrome} metalness={0.92} roughness={0.12} position={[0, 1.1, 0]} finish="smooth">
+              <RBox args={[1.9, 0.06, 0.36]} />
+            </Surface>
+            {/* Oil cap on the front cover */}
+            <Surface swap color={C.chrome} metalness={0.9} roughness={0.15} position={[0.85, 1.12, 0]} finish="smooth">
+              <cylinderGeometry args={[0.08, 0.08, 0.08, 16]} />
+            </Surface>
+          </BankExplode>
         </group>
       ))}
     </Part>
@@ -553,14 +652,16 @@ function ValveCovers() {
 
 function CoverBolts() {
   return (
-    <Part name="cover_bolts" system="fasteners" position={[0, 0, 0]} explode={[0, 3.4, 0]}>
+    <Part name="cover_bolts" system="fasteners" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
-          {[-0.8, -0.27, 0.27, 0.8].map((x) =>
-            [-0.18, 0.18].map((z) => (
-              <HexBolt key={`${x}-${z}`} position={[x, 1.08, z]} len={0.12} scale={0.66} color={C.chrome} washer />
-            ))
-          )}
+          <BankExplode amount={4.6}>
+            {[-0.8, -0.27, 0.27, 0.8].map((x) =>
+              [-0.18, 0.18].map((z) => (
+                <HexBolt key={`${x}-${z}`} position={[x, 1.08, z]} len={0.12} scale={0.66} color={C.chrome} washer />
+              ))
+            )}
+          </BankExplode>
         </group>
       ))}
     </Part>
@@ -569,14 +670,16 @@ function CoverBolts() {
 
 function HeadBolts() {
   return (
-    <Part name="head_bolts" system="fasteners" position={[0, 0, 0]} explode={[0, 2.4, 0]}>
+    <Part name="head_bolts" system="fasteners" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
-          {[-0.85, -0.3, 0.3, 0.85].map((x) =>
-            [-0.2, 0.2].map((z) => (
-              <HexBolt key={`${x}-${z}`} position={[x, 0.9, z]} len={0.2} scale={0.7} washer />
-            ))
-          )}
+          <BankExplode amount={2.7}>
+            {[-0.85, -0.3, 0.3, 0.85].map((x) =>
+              [-0.2, 0.2].map((z) => (
+                <HexBolt key={`${x}-${z}`} position={[x, 0.9, z]} len={0.2} scale={0.7} washer />
+              ))
+            )}
+          </BankExplode>
         </group>
       ))}
     </Part>
@@ -587,17 +690,18 @@ function HeadBolts() {
 function IntakeManifold() {
   return (
     <Part name="intake_manifold" system="intake" position={[0, 0.55, 0]} explode={[0, 1.5, 0]}>
-      {/* Valley body, tapering up to the carb pad */}
-      <Surface color={C.alu} metalness={0.5} roughness={0.5} position={[0, 0, 0]}>
+      {/* Valley body, tapering up to the carb pad
+          (swappable: cast / Edelbrock Performer / polished RPM Air-Gap) */}
+      <Surface swap color={C.alu} metalness={0.5} roughness={0.5} position={[0, 0, 0]}>
         <RBox args={[1.85, 0.34, 0.66]} />
       </Surface>
-      <Surface color={C.alu} metalness={0.5} roughness={0.5} position={[0, 0.2, 0]}>
+      <Surface swap color={C.alu} metalness={0.5} roughness={0.5} position={[0, 0.2, 0]}>
         <RBox args={[0.6, 0.12, 0.5]} />
       </Surface>
       {/* Runners reaching out to each bank */}
       {[1, -1].map((side) =>
         [-0.6, 0.6].map((x) => (
-          <Surface key={`${side}-${x}`} color={C.alu} metalness={0.5} roughness={0.55} position={[x, 0.0, side * 0.34]} rotation={[side * 0.6, 0, 0]}>
+          <Surface swap key={`${side}-${x}`} color={C.alu} metalness={0.5} roughness={0.55} position={[x, 0.0, side * 0.34]} rotation={[side * 0.6, 0, 0]}>
             <cylinderGeometry args={[0.08, 0.08, 0.34, 12]} />
           </Surface>
         ))
@@ -609,15 +713,16 @@ function IntakeManifold() {
 function Carburettor() {
   return (
     <Part name="carburetor" system="intake" position={[0, 0.86, 0]} explode={[0, 2.4, 0]}>
-      <Surface color={C.alu} metalness={0.7} roughness={0.3}>
+      {/* Carb body (swappable: Edelbrock satin / Holley gold / Sniper EFI black) */}
+      <Surface swap color={C.alu} metalness={0.7} roughness={0.3}>
         <RBox args={[0.34, 0.24, 0.34]} />
       </Surface>
       {/* Float bowls + fuel inlet */}
-      <Surface color={C.alu} metalness={0.7} roughness={0.3} position={[0.22, -0.02, 0]}>
+      <Surface swap color={C.alu} metalness={0.7} roughness={0.3} position={[0.22, -0.02, 0]}>
         <RBox args={[0.12, 0.16, 0.24]} />
       </Surface>
       {/* Air horn */}
-      <Surface color={C.alu} metalness={0.7} roughness={0.3} position={[0, 0.16, 0]}>
+      <Surface swap color={C.alu} metalness={0.7} roughness={0.3} position={[0, 0.16, 0]}>
         <cylinderGeometry args={[0.13, 0.15, 0.08, 20]} />
       </Surface>
     </Part>
@@ -627,8 +732,10 @@ function Carburettor() {
 function AirCleaner() {
   return (
     <Part name="air_cleaner" system="intake" position={[0, 1.08, 0]} explode={[0, 3.1, 0]}>
-      {/* The iconic round chrome air cleaner — domed lid with a rolled rim */}
+      {/* The iconic round chrome air cleaner — domed lid with a rolled rim
+          (swappable: chrome / K&N / black powder-coat) */}
       <Turned
+        swap
         profile={[
           [0, 0],
           [0.46, 0],
@@ -644,7 +751,7 @@ function AirCleaner() {
         finish="smooth"
       />
       {/* Wing nut */}
-      <Surface color={C.chrome} metalness={0.9} roughness={0.15} position={[0, 0.2, 0]} finish="smooth">
+      <Surface swap color={C.chrome} metalness={0.9} roughness={0.15} position={[0, 0.2, 0]} finish="smooth">
         <RBox args={[0.14, 0.04, 0.05]} />
       </Surface>
     </Part>
@@ -705,8 +812,9 @@ function Headers() {
         <group key={side} {...bankProps(side)}>
           {BANK_X.map((x) => (
             <group key={x}>
-              {/* Cast flange bolting the port to the head */}
-              <Surface mat="castIron" position={[x, 0.72, 0.32]} rotation={[Math.PI / 2, 0, 0]}>
+              {/* Cast flange bolting the port to the head
+                  (swappable: cast iron / ceramic / chrome / black-coated) */}
+              <Surface swap mat="castIron" position={[x, 0.72, 0.32]} rotation={[Math.PI / 2, 0, 0]}>
                 <RBox args={[0.15, 0.05, 0.2]} />
               </Surface>
               {/* Two bolts per port — the classic buried-behind-everything pair */}
@@ -714,13 +822,13 @@ function Headers() {
                 <HexBolt key={dy} position={[x, 0.72 + dy, 0.37]} rotation={[-Math.PI / 2, 0, 0]} len={0.12} scale={0.55} washer />
               ))}
               {/* Primary tube sweeping down/out from the port */}
-              <Surface mat="castIron" finish="rough" position={[x, 0.6, 0.46]} rotation={[-0.7, 0, 0]}>
+              <Surface swap mat="castIron" finish="rough" position={[x, 0.6, 0.46]} rotation={[-0.7, 0, 0]}>
                 <cylinderGeometry args={[0.05, 0.05, 0.5, 14]} />
               </Surface>
             </group>
           ))}
           {/* Collector running along the bank */}
-          <Surface mat="castIron" finish="rough" position={[0, 0.42, 0.66]} rotation={[0, 0, Math.PI / 2]}>
+          <Surface swap mat="castIron" finish="rough" position={[0, 0.42, 0.66]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.09, 0.09, 1.9, 16]} />
           </Surface>
         </group>
@@ -783,12 +891,13 @@ function BellhousingBolts() {
 function WaterPump() {
   return (
     <Part name="water_pump" system="cooling" position={[0, 0, 0]} explode={[2.4, 0, 0]}>
-      {/* Cast housing bolted to the front of the block */}
-      <Surface color={C.alu} metalness={0.5} roughness={0.5} position={[1.42, 0.28, 0]}>
+      {/* Cast housing bolted to the front of the block
+          (swappable: cast / polished aluminum / chrome) */}
+      <Surface swap color={C.alu} metalness={0.5} roughness={0.5} position={[1.42, 0.28, 0]}>
         <RBox args={[0.22, 0.5, 0.74]} />
       </Surface>
       {/* Shaft snout the pulley + fan ride on */}
-      <Surface color={C.alu} metalness={0.55} roughness={0.45} position={[1.58, 0.28, 0]} rotation={[0, 0, Math.PI / 2]}>
+      <Surface swap color={C.alu} metalness={0.55} roughness={0.45} position={[1.58, 0.28, 0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.12, 0.14, 0.16, 24]} />
       </Surface>
       <Pulley position={[BELT_PLANE_X, 0.28, 0]} r={0.2} />
@@ -820,7 +929,8 @@ function CoolingFan() {
           const a = (i / 6) * Math.PI * 2;
           return (
             <group key={i} rotation={[a, 0, 0]}>
-              <Surface color="#26292f" metalness={0.4} roughness={0.6} position={[0.06, 0.34, 0]} rotation={[0.4, 0, 0]}>
+              {/* Blade (swappable: steel / flex fan / black clutch fan) */}
+              <Surface swap color="#26292f" metalness={0.4} roughness={0.6} position={[0.06, 0.34, 0]} rotation={[0.4, 0, 0]}>
                 <RBox args={[0.04, 0.46, 0.2]} />
               </Surface>
             </group>
@@ -835,8 +945,10 @@ function Alternator() {
   return (
     <Part name="alternator" system="charging" position={[0, 0, 0]} explode={[2.0, 1.4, 0.4]}>
       {/* Cylindrical case mounted high on the front, passenger side — turned with
-          tapered end bells like a real cast alternator housing */}
+          tapered end bells like a real cast alternator housing
+          (swappable: cast Delco / chrome / black high-output) */}
       <Turned
+        swap
         profile={[
           [0, 0],
           [0.1, 0],
@@ -930,7 +1042,7 @@ function DriveBelt() {
   const loop = convexHull(samples).map(([y, z]) => [BELT_PLANE_X, y, z]);
   return (
     <Part name="drive_belt" system="cooling" position={[0, 0, 0]} explode={[2.9, 0.4, 0.1]}>
-      <Hose points={loop} radius={0.026} color="#15171a" metalness={0.15} roughness={0.88} closed segments={150} />
+      <Hose swap points={loop} radius={0.026} color="#15171a" metalness={0.15} roughness={0.88} closed segments={150} />
     </Part>
   );
 }
@@ -1027,36 +1139,111 @@ function FuelPump() {
 }
 
 // ── Valvetrain (under the covers) ────────────────────────────────────────────────
+// Valve travel in scene units at full lift. Read live from activeCam each frame so
+// swapping to a higher-lift camshaft in the Garage actually opens the valves further.
+
+/**
+ * One intake or exhaust valve and the gear that works it. Everything is driven
+ * imperatively each frame from valveLift(id, crankAngle, which) — the same cam
+ * timing the simulation uses — so the rocker rocks, the spring compresses, the
+ * pushrod lifts, and the valve cracks open exactly when that cylinder's cam lobe
+ * comes up. With the engine stopped the valve seats (lift forced to 0).
+ *
+ * Local frame: origin at the rocker pivot, +x toward the valve / −x toward the
+ * pushrod, −y down into the head. The valve axis sits at x≈0.075.
+ */
+function ValveGear({ id, which }) {
+  const valveRef = useRef(); // stem + head + retainer; slides down to open
+  const springRef = useRef(); // anchored at the head seat, scales in y to compress
+  const rockerRef = useRef(); // pivots about the stud, valve end dips as it opens
+  const pushRef = useRef(); // rises with the cam lobe
+  const fs = useContext(FailureContext);
+  // The cam this engine runs on. Default (single-engine view) is the global
+  // activeCam; in the arena each engine gets its own via CamContext, so a hot cam
+  // and a stock cam visibly open their valves on different timing and lift.
+  const cam = useContext(CamContext);
+  const SPRING_FREE = 0.28; // seat→retainer length used to normalise compression
+  useFrame(() => {
+    const L = simState.rpm < 1 ? 0 : valveLift(id, simState.crankAngle, which, cam); // 0..1
+    let drop = L * cam.maxLift;
+    if (fs.float && simState.rpm > 1) {
+      // Valve float: the springs can't keep up, so the valve stops following the
+      // cam — it hangs off its seat and bounces instead of sealing.
+      const sev = Math.min(1, fs.valvetrain / 2);
+      const bounce = Math.abs(Math.sin(simState.crankAngle * 9 + id * 1.7));
+      drop = drop * (1 - 0.3 * sev) + sev * cam.maxLift * 0.4 * bounce;
+    }
+    if (valveRef.current) valveRef.current.position.y = -drop;
+    if (springRef.current) springRef.current.scale.y = 1 - drop / SPRING_FREE;
+    // valve-end (x≈0.085) dip ≈ rocker arm × sinθ; track the valve's drop.
+    if (rockerRef.current) rockerRef.current.rotation.z = -Math.asin(Math.min(0.95, drop / 0.085));
+    // pushrod travel = valve lift ÷ rocker ratio (~1.5).
+    if (pushRef.current) pushRef.current.position.y = drop / 1.5;
+  });
+  return (
+    <group>
+      {/* Pivot stud (fixed) the rocker rides on */}
+      <Surface color={C.steel} metalness={0.85} roughness={0.28}>
+        <cylinderGeometry args={[0.018, 0.018, 0.12, 10]} />
+      </Surface>
+      {/* Rocker arm — pivots about the stud */}
+      <group ref={rockerRef}>
+        <Surface color={C.steel} metalness={0.82} roughness={0.3} position={[0, 0.04, 0]}>
+          <RBox args={[0.17, 0.035, 0.05]} />
+        </Surface>
+      </group>
+      {/* Pushrod angling down into the valley toward the cam */}
+      <group ref={pushRef}>
+        <Surface color={C.steel} metalness={0.8} roughness={0.35} position={[-0.08, -0.22, 0]} rotation={[0, 0, 0.5]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.42, 8]} />
+        </Surface>
+      </group>
+      {/* Valve spring — anchored at the head seat, compresses as the valve opens */}
+      <group ref={springRef} position={[0.075, -0.28, 0]}>
+        {[0, 1, 2, 3, 4].map((k) => (
+          <Surface key={k} color="#9aa1aa" metalness={0.7} roughness={0.4} position={[0, 0.03 + k * 0.05, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.035, 0.008, 6, 14]} />
+          </Surface>
+        ))}
+      </group>
+      {/* Valve — retainer + stem + sealing head; intake runs a larger head than
+          exhaust. Slides down off its seat to open. */}
+      <group ref={valveRef} position={[0.075, 0, 0]}>
+        <Surface color={C.steel} metalness={0.85} roughness={0.28} position={[0, -0.02, 0]}>
+          <cylinderGeometry args={[0.032, 0.032, 0.025, 14]} />
+        </Surface>
+        <Surface color={C.steel} metalness={0.85} roughness={0.25} position={[0, -0.2, 0]} finish="machined">
+          <cylinderGeometry args={[0.011, 0.011, 0.36, 12]} />
+        </Surface>
+        <Surface color={which === 'exhaust' ? C.iron : C.steel} metalness={0.7} roughness={0.4} position={[0, -0.4, 0]}>
+          <cylinderGeometry args={[0.02, which === 'intake' ? 0.058 : 0.05, 0.03, 18]} />
+        </Surface>
+      </group>
+    </group>
+  );
+}
+
 function Valvetrain() {
   return (
-    <Part name="valvetrain" system="head" position={[0, 0, 0]} explode={[0, 2.2, 0]}>
+    <Part name="valvetrain" system="head" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {[1, -1].map((side) => (
         <group key={side} {...bankProps(side)}>
-          {BANK_X.map((x) => (
-            <group key={x} position={[x, 0.92, 0]}>
-              {[-0.13, 0.13].map((z) => (
-                <group key={z} position={[0, 0, z]}>
-                  {/* Rocker arm + pivot stud */}
-                  <Surface color={C.steel} metalness={0.82} roughness={0.3} position={[0, 0.04, 0]}>
-                    <RBox args={[0.17, 0.035, 0.05]} />
-                  </Surface>
-                  <Surface color={C.steel} metalness={0.85} roughness={0.28} position={[0, 0, 0]}>
-                    <cylinderGeometry args={[0.018, 0.018, 0.12, 10]} />
-                  </Surface>
-                  {/* Valve spring (stacked coils) dropping into the head */}
-                  {[0, 1, 2, 3].map((k) => (
-                    <Surface key={k} color="#9aa1aa" metalness={0.7} roughness={0.4} position={[0.075, -0.04 - k * 0.035, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                      <torusGeometry args={[0.035, 0.008, 6, 14]} />
-                    </Surface>
-                  ))}
-                  {/* Pushrod angling down into the valley toward the cam */}
-                  <Surface color={C.steel} metalness={0.8} roughness={0.35} position={[-0.08, -0.22, 0]} rotation={[0, 0, 0.5]}>
-                    <cylinderGeometry args={[0.012, 0.012, 0.42, 8]} />
-                  </Surface>
+          <BankExplode amount={3.1}>
+            {BANK_X.map((x, i) => {
+              const id = BANK_IDS[side][3 - i];
+              return (
+                <group key={x} position={[x, 0.92, 0]}>
+                  {/* intake valve inboard (toward the valley), exhaust outboard */}
+                  <group position={[0, 0, -0.13]}>
+                    <ValveGear id={id} which="intake" />
+                  </group>
+                  <group position={[0, 0, 0.13]}>
+                    <ValveGear id={id} which="exhaust" />
+                  </group>
                 </group>
-              ))}
-            </group>
-          ))}
+              );
+            })}
+          </BankExplode>
         </group>
       ))}
     </Part>
@@ -1171,8 +1358,9 @@ function OilFilter() {
       <Surface color={C.steel} metalness={0.6} roughness={0.42} position={[-0.85, -0.42, 0.35]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.1, 0.1, 0.05, 24]} />
       </Surface>
-      {/* Spin-on canister (needs a filter wrench to remove) */}
+      {/* Spin-on canister (swappable: ACDelco / FRAM / Mobil 1 / K&N) */}
       <Turned
+        swap
         profile={canister}
         color="#2b6cb0"
         metalness={0.5}
@@ -1366,6 +1554,7 @@ export default function EngineAssembly() {
       <ThrottleLinkage />
       <VacuumAdvance />
       <Senders />
+      <FailureEffects />
     </group>
   );
 }

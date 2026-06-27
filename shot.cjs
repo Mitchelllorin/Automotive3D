@@ -30,6 +30,20 @@ const puppeteer = require('puppeteer');
     }, { run: !!process.env.RUN, cut: !!process.env.CUT });
     await new Promise((r) => setTimeout(r, 2500));
   }
+  // Optional explode (0..1) — drive the range slider the React way.
+  if (process.env.EXPLODE) {
+    await page.evaluate((v) => {
+      const el = document.querySelector('.explode-slider');
+      if (!el) return;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(el, String(v));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }, Number(process.env.EXPLODE));
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  // Extra settle, so successive shots catch the engine at different crank angles.
+  if (process.env.WAIT) await new Promise((r) => setTimeout(r, Number(process.env.WAIT)));
   // Clip to a zoomed region around the engine for detail.
   const clip = process.env.CLIP ? JSON.parse(process.env.CLIP) : { x: 120, y: 150, width: 740, height: 560 };
   await page.screenshot({ path: out, clip });

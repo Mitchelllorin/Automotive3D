@@ -6,6 +6,7 @@
  * read whatever the active assembly declares.
  */
 import EngineAssembly from './engine/EngineAssembly';
+import Inline4Assembly from './inline4/Inline4Assembly';
 
 export const ASSEMBLIES = {
   engine: {
@@ -17,8 +18,16 @@ export const ASSEMBLIES = {
     ground: -1.5,
   },
 
+  inline4: {
+    id: 'inline4',
+    label: 'Turbo Inline-4',
+    Component: Inline4Assembly,
+    // Tighter, taller footprint than the V8 — frame a bit closer and lower.
+    camera: { position: [4.4, 2.8, 4.8], target: [0, 0.35, 0], min: 3, max: 26, fov: 42 },
+    ground: -1.2,
+  },
+
   // Future: full vehicle, transmission, suspension corner, etc.
-  // vehicle: { id: 'vehicle', label: 'Vehicle', Component: VehicleAssembly, ... },
 };
 
 export const DEFAULT_ASSEMBLY = 'engine';

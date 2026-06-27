@@ -4,6 +4,15 @@
  */
 import { create } from 'zustand';
 import { explodeState } from '../lib/explodeState';
+import { setActiveCam } from '../data/engineSpec';
+import { getActiveVariant } from '../data/products';
+import { getEngine, DEFAULT_ENGINE_ID } from '../data/engines';
+
+/** Push the selected camshaft's profile into the live valve animation. */
+function applyCamProfile(variantId) {
+  const cam = getActiveVariant('camshaft', variantId)?.cam;
+  if (cam) setActiveCam(cam);
+}
 
 /** Optional initial teardown amount from the URL, e.g. ?explode=1 (deep links / screenshots). */
 const initialExplode = (() => {
@@ -15,10 +24,199 @@ const initialExplode = (() => {
 // Pre-seed the eased value so the first rendered frame already matches the target.
 explodeState.factor = initialExplode;
 
+/** Sidebar width is user-resizable and remembered across sessions. */
+const SIDEBAR_MIN = 240;
+const SIDEBAR_MAX = 560;
+const clampSidebar = (w) => Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, w));
+const initialSidebarWidth = (() => {
+  if (typeof window === 'undefined') return 320;
+  const raw = parseFloat(window.localStorage.getItem('a3d:sidebarWidth'));
+  return Number.isFinite(raw) ? clampSidebar(raw) : 320;
+})();
+
 const useAppStore = create((set) => ({
   // ── Navigation ────────────────────────────────────────────────
-  activeTab: 'systems', // 'systems' | 'parts' | 'faults' | 'info'
+  activeTab: 'build', // 'build' | 'arena' | 'faults' | 'parts' | 'systems' | 'info'
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  // ── Guided tour / tutorial ────────────────────────────────────
+  // A step-through coachmark walkthrough (see components/ui/Tour + lib/tourSteps).
+  // Auto-runs once for new users; replayable from the ? button.
+  tutorialSeen: typeof window !== 'undefined' && window.localStorage.getItem('a3d:tutorialSeen') === '1',
+  tourActive: false,
+  tourStep: 0,
+  startTour: () => set({ tourActive: true, tourStep: 0 }),
+  tourNext: () => set((s) => ({ tourStep: s.tourStep + 1 })),
+  tourPrev: () => set((s) => ({ tourStep: Math.max(0, s.tourStep - 1) })),
+  tourGoto: (i) => set({ tourStep: Math.max(0, i) }),
+  endTour: () => {
+    if (typeof window !== 'undefined') {
+      try { window.localStorage.setItem('a3d:tutorialSeen', '1'); } catch { /* ignore */ }
+    }
+    return set({ tourActive: false, tutorialSeen: true });
+  },
+
+  // ── Workspace layout ──────────────────────────────────────────
+  // Collapsing the side panel hands the full viewport to the 3D scene.
+  // Default COLLAPSED so the engine — not the Build/product panel — is the hero
+  // on load (it would otherwise eat ~42vh on a phone). The choice is remembered.
+  sidebarCollapsed: (() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('a3d:sidebarCollapsed') !== 'false';
+  })(),
+  toggleSidebar: () =>
+    set((state) => {
+      const next = !state.sidebarCollapsed;
+      try {
+        window.localStorage.setItem('a3d:sidebarCollapsed', String(next));
+      } catch {
+        /* private mode / storage full — non-fatal, just won't persist */
+      }
+      return { sidebarCollapsed: next };
+    }),
+  /** Explicit setter (used by the guided tour to open the panel for a step). */
+  setSidebarCollapsed: (v) =>
+    set(() => {
+      try { window.localStorage.setItem('a3d:sidebarCollapsed', String(!!v)); } catch { /* ignore */ }
+      return { sidebarCollapsed: !!v };
+    }),
+  // The floating engine-control menu is dismissable; the camera re-centers the
+  // engine into the freed space when it's collapsed (see ViewOffsetController).
+  controlsCollapsed: false,
+  toggleControls: () => set((state) => ({ controlsCollapsed: !state.controlsCollapsed })),
+  setControlsCollapsed: (v) => set({ controlsCollapsed: !!v }),
+
+  // ── Active engine — which motor you're building / battling ─────
+  // The whole roster lives in data/engines; the dyno, garage, F.U.S.E. and arena
+  // all read whichever package is active. Persisted so your motor sticks.
+  activeEngineId: (() => {
+    if (typeof window === 'undefined') return DEFAULT_ENGINE_ID;
+    const saved = window.localStorage.getItem('a3d:engineId');
+    const pkg = saved && getEngine(saved);
+    return pkg && pkg.available ? pkg.id : DEFAULT_ENGINE_ID;
+  })(),
+  /** Switch the motor being built. Locked ("coming soon") packages are refused. */
+  setEngine: (id) =>
+    set(() => {
+      const pkg = getEngine(id);
+      if (!pkg || !pkg.available) return {};
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:engineId', pkg.id);
+      return { activeEngineId: pkg.id };
+    }),
+
+  // ── Garage: part swapping / product placement ─────────────────
+  // Maps a component id → chosen variant id (see data/products.js). A part with
+  // no entry shows its OEM/default look. Persisted so a built engine sticks.
+  partVariants: (() => {
+    if (typeof window === 'undefined') return {};
+    let saved = {};
+    try {
+      saved = JSON.parse(window.localStorage.getItem('a3d:partVariants')) || {};
+    } catch {
+      saved = {};
+    }
+    applyCamProfile(saved.camshaft); // restore the built cam's valve timing on load
+    return saved;
+  })(),
+  setPartVariant: (componentId, variantId) =>
+    set((state) => {
+      const next = { ...state.partVariants, [componentId]: variantId };
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('a3d:partVariants', JSON.stringify(next));
+      }
+      if (componentId === 'camshaft') applyCamProfile(variantId);
+      return { partVariants: next };
+    }),
+
+  // ── 3D logo FX — floating logo controls (matches the sibling apps), persisted ──
+  logoFx: (() => {
+    const def = { opacity: 1, speed: 1, bounce: 0.5 };
+    if (typeof window === 'undefined') return def;
+    try {
+      return { ...def, ...(JSON.parse(window.localStorage.getItem('a3d:logoFx')) || {}) };
+    } catch {
+      return def;
+    }
+  })(),
+  setLogoFx: (partial) =>
+    set((s) => {
+      const logoFx = { ...s.logoFx, ...partial };
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:logoFx', JSON.stringify(logoFx));
+      return { logoFx };
+    }),
+  logoSettingsOpen: false,
+  toggleLogoSettings: () => set((s) => ({ logoSettingsOpen: !s.logoSettingsOpen })),
+
+  // ── Ghost preview — try a part on the engine before committing it ────────────
+  // While set, the 3D engine + build numbers show this part as a translucent
+  // "ghost"; releasing commits it (setPartVariant), sliding off clears it.
+  preview: null, // { category, variantId } | null
+  setPreview: (category, variantId) =>
+    set((s) =>
+      s.preview && s.preview.category === category && s.preview.variantId === variantId
+        ? {}
+        : { preview: { category, variantId } }
+    ),
+  clearPreview: () => set((s) => (s.preview ? { preview: null } : {})),
+
+  // ── Custom builds — the user's saved engine combos ───────────────────────────
+  savedBuilds: (() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      return JSON.parse(window.localStorage.getItem('a3d:savedBuilds')) || [];
+    } catch {
+      return [];
+    }
+  })(),
+  activeBuildId: null,
+  /** Persist the current part selection as a named custom build. */
+  saveBuild: (name) =>
+    set((state) => {
+      const id = `b_${Date.now()}`;
+      const build = { id, name: name?.trim() || `Build ${state.savedBuilds.length + 1}`, engineId: state.activeEngineId, partVariants: { ...state.partVariants } };
+      const next = [...state.savedBuilds, build];
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:savedBuilds', JSON.stringify(next));
+      return { savedBuilds: next, activeBuildId: id };
+    }),
+  /** Load a saved build into the active part selection. */
+  loadBuild: (id) =>
+    set((state) => {
+      const build = state.savedBuilds.find((b) => b.id === id);
+      if (!build) return {};
+      const pv = { ...build.partVariants };
+      // Restore the motor this build was made on (if it's still selectable).
+      const enginePkg = build.engineId && getEngine(build.engineId);
+      const engineId = enginePkg && enginePkg.available ? enginePkg.id : state.activeEngineId;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('a3d:partVariants', JSON.stringify(pv));
+        window.localStorage.setItem('a3d:engineId', engineId);
+      }
+      applyCamProfile(pv.camshaft);
+      return { partVariants: pv, activeBuildId: id, activeEngineId: engineId };
+    }),
+  deleteBuild: (id) =>
+    set((state) => {
+      const next = state.savedBuilds.filter((b) => b.id !== id);
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:savedBuilds', JSON.stringify(next));
+      return { savedBuilds: next, activeBuildId: state.activeBuildId === id ? null : state.activeBuildId };
+    }),
+  /** Start fresh — reset every category to its OEM/stock part. */
+  newBuild: () =>
+    set(() => {
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:partVariants', JSON.stringify({}));
+      applyCamProfile(undefined);
+      return { partVariants: {}, activeBuildId: null };
+    }),
+
+  // User-draggable panel width (px), clamped and persisted to localStorage.
+  sidebarWidth: initialSidebarWidth,
+  setSidebarWidth: (w) => {
+    const clamped = clampSidebar(w);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('a3d:sidebarWidth', String(clamped));
+    }
+    set({ sidebarWidth: clamped });
+  },
 
   // ── Subsystem selection ───────────────────────────────────────
   selectedSubsystem: null, // subsystem id string or null
@@ -92,8 +290,24 @@ const useAppStore = create((set) => ({
   targetRpm: 850, // idle
   timeScale: 0.15, // start in gentle slow-mo so motion reads clearly
   toggleEngine: () => set((state) => ({ engineRunning: !state.engineRunning })),
+  setEngineRunning: (v) => set({ engineRunning: !!v }),
   setTargetRpm: (v) => set({ targetRpm: Math.max(0, Math.min(7000, Math.round(v))) }),
   setTimeScale: (v) => set({ timeScale: Math.max(0.02, Math.min(1, v)) }),
+  // ── Battle Arena (head-to-head stress duel staged in the workspace) ──────────
+  arena: { active: false, status: 'ready', winner: null, rivalId: 'stock' },
+  toggleArena: () =>
+    set((s) => ({ arena: { ...s.arena, active: !s.arena.active, status: 'ready', winner: null } })),
+  setArenaRival: (rivalId) => set((s) => ({ arena: { ...s.arena, rivalId, status: 'ready', winner: null } })),
+  startArena: () => set((s) => ({ arena: { ...s.arena, status: 'battling', winner: null } })),
+  resetArena: () => set((s) => ({ arena: { ...s.arena, status: 'ready', winner: null } })),
+  finishArena: (winner) => set((s) => ({ arena: { ...s.arena, status: 'complete', winner } })),
+
+  // ── F.U.S.E. operating conditions (shared by the panel + the 3D failure FX) ──
+  // Which environment / fuel / engine load the failure engine evaluates against.
+  fuseConditions: { envIdx: 0, fuelIdx: 1, load: 1 },
+  setFuseConditions: (patch) =>
+    set((state) => ({ fuseConditions: { ...state.fuseConditions, ...patch } })),
+
   // Cross-section: slice the front half away to watch pistons/valves run inside.
   // The cutaway plane follows the focused part's depth (see focusState).
   cutaway: false,

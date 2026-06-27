@@ -98,22 +98,67 @@ export function strokePhase(id, crankAngleRad) {
   return 'compression';
 }
 
-// ── Valvetrain timing (degrees, relative to TDC) ─────────────────────────────
-// A mild street cam: intake opens BTDC, exhaust closes ATDC, ~0.45" lift.
+// ── Valvetrain timing ────────────────────────────────────────────────────────
+// Valve events as crank angle on the same `local` clock strokePhase uses, where
+// 0° is this cylinder's firing TDC: power 0–180, exhaust 180–360, intake
+// 360–540, compression 540–720. A mild street cam (~112° LSA, ~0.45" lift):
+// exhaust opens ~50° BBDC and closes ~10° ATDC; intake opens ~10° BTDC and
+// closes ~50° ABDC — giving the small overlap around the 360° exhaust/intake
+// TDC you'd expect, and keeping both valves shut through the power stroke.
 export const CAM = {
-  intakeOpenDeg: -10, // BTDC
-  intakeDurationDeg: 210,
-  exhaustOpenDeg: 360 - 220 + 10,
-  exhaustDurationDeg: 220,
+  exhaustOpen: 130, // 50° before power-stroke BDC (180)
+  exhaustClose: 370, // 10° after exhaust-stroke TDC (360)
+  intakeOpen: 350, // 10° before intake-stroke TDC (360)
+  intakeClose: 590, // 50° after intake-stroke BDC (540)
   maxLift: inches(0.45),
 };
 
-/** Normalised valve lift 0..1 for intake/exhaust of a cylinder at crank angle. */
-export function valveLift(id, crankAngleRad, which) {
+/**
+ * The cam that's actually installed right now. Initialised to the stock CAM, it's
+ * the single profile the valve animation reads, so swapping camshafts in the
+ * Garage retimes and re-lifts the valves live — the same selection that moves the
+ * dyno curve also changes how far and how long each valve opens. Mutable like
+ * simState/explodeState so the per-frame valvetrain reads it without re-rendering.
+ */
+export const activeCam = { ...CAM };
+
+/**
+ * Resolve a cam profile ({events, maxLiftIn}) into a standalone cam object, filling
+ * any omitted field from the stock CAM. Pure — allocates a fresh object and mutates
+ * nothing, so the Battle Arena can give each engine its OWN cam (via CamContext)
+ * without touching the global `activeCam` the single-engine view reads.
+ */
+export function makeCam(profile) {
+  const cam = { ...CAM };
+  if (!profile) return cam;
+  const { events, maxLiftIn } = profile;
+  if (events) {
+    if (events.exhaustOpen != null) cam.exhaustOpen = events.exhaustOpen;
+    if (events.exhaustClose != null) cam.exhaustClose = events.exhaustClose;
+    if (events.intakeOpen != null) cam.intakeOpen = events.intakeOpen;
+    if (events.intakeClose != null) cam.intakeClose = events.intakeClose;
+  }
+  if (maxLiftIn != null) cam.maxLift = inches(maxLiftIn);
+  return cam;
+}
+
+/** Install a cam profile into the live (global) cam the single-engine view reads. */
+export function setActiveCam(profile) {
+  if (!profile) return;
+  Object.assign(activeCam, makeCam(profile));
+}
+
+/**
+ * Normalised valve lift 0..1 for intake/exhaust of a cylinder at crank angle.
+ * `cam` defaults to the global activeCam (single-engine); the arena passes each
+ * engine's own cam so two different camshafts open their valves on their own timing.
+ */
+export function valveLift(id, crankAngleRad, which, cam = activeCam) {
   const deg = (((crankAngleRad * 180) / Math.PI) % 720 + 720) % 720;
   const local = (deg - CYLINDERS[id].powerStrokeDeg + 720) % 720;
-  const open = which === 'intake' ? 540 + CAM.intakeOpenDeg : 180 + CAM.exhaustOpenDeg - 360;
-  const dur = which === 'intake' ? CAM.intakeDurationDeg : CAM.exhaustDurationDeg;
+  const open = which === 'intake' ? cam.intakeOpen : cam.exhaustOpen;
+  const close = which === 'intake' ? cam.intakeClose : cam.exhaustClose;
+  const dur = (close - open + 720) % 720;
   const t = (local - open + 720) % 720;
   if (t > dur) return 0;
   return Math.sin((t / dur) * Math.PI); // smooth open→close hump

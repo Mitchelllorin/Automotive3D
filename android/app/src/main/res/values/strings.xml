@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Automotive3D</string>
+    <string name="title_activity_main">Automotive3D</string>
+    <string name="package_name">com.automotive3d.app</string>
+    <string name="custom_url_scheme">com.automotive3d.app</string>
+</resources>
