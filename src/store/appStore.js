@@ -74,27 +74,38 @@ const useAppStore = create((set) => ({
     if (typeof window === 'undefined') return true;
     return window.localStorage.getItem('a3d:sidebarCollapsed') !== 'false';
   })(),
+  // One workspace panel at a time: opening the side panel closes the floating
+  // engine/dyno panel and vice-versa, so the engine is never boxed in by two panels
+  // — and the camera (ViewOffsetController) re-centers it in whatever space is left.
+  // Closing a panel never force-opens the other (both may be closed = clean view).
   toggleSidebar: () =>
     set((state) => {
       const next = !state.sidebarCollapsed;
-      try {
-        window.localStorage.setItem('a3d:sidebarCollapsed', String(next));
-      } catch {
-        /* private mode / storage full — non-fatal, just won't persist */
-      }
-      return { sidebarCollapsed: next };
+      try { window.localStorage.setItem('a3d:sidebarCollapsed', String(next)); } catch { /* non-fatal */ }
+      return { sidebarCollapsed: next, controlsCollapsed: next ? state.controlsCollapsed : true };
     }),
   /** Explicit setter (used by the guided tour to open the panel for a step). */
   setSidebarCollapsed: (v) =>
-    set(() => {
-      try { window.localStorage.setItem('a3d:sidebarCollapsed', String(!!v)); } catch { /* ignore */ }
-      return { sidebarCollapsed: !!v };
+    set((state) => {
+      const collapsed = !!v;
+      try { window.localStorage.setItem('a3d:sidebarCollapsed', String(collapsed)); } catch { /* ignore */ }
+      return { sidebarCollapsed: collapsed, controlsCollapsed: collapsed ? state.controlsCollapsed : true };
     }),
   // The floating engine-control menu is dismissable; the camera re-centers the
   // engine into the freed space when it's collapsed (see ViewOffsetController).
   controlsCollapsed: false,
-  toggleControls: () => set((state) => ({ controlsCollapsed: !state.controlsCollapsed })),
-  setControlsCollapsed: (v) => set({ controlsCollapsed: !!v }),
+  toggleControls: () =>
+    set((state) => {
+      const next = !state.controlsCollapsed;
+      if (!next) { try { window.localStorage.setItem('a3d:sidebarCollapsed', 'true'); } catch { /* ignore */ } }
+      return next ? { controlsCollapsed: true } : { controlsCollapsed: false, sidebarCollapsed: true };
+    }),
+  setControlsCollapsed: (v) =>
+    set(() => {
+      const collapsed = !!v;
+      if (!collapsed) { try { window.localStorage.setItem('a3d:sidebarCollapsed', 'true'); } catch { /* ignore */ } }
+      return collapsed ? { controlsCollapsed: true } : { controlsCollapsed: false, sidebarCollapsed: true };
+    }),
 
   // ── Active engine — which motor you're building / battling ─────
   // The whole roster lives in data/engines; the dyno, garage, F.U.S.E. and arena
@@ -348,7 +359,17 @@ const useAppStore = create((set) => ({
   // ── Battle Arena (head-to-head stress duel staged in the workspace) ──────────
   arena: { active: false, status: 'ready', winner: null, rivalId: 'stock' },
   toggleArena: () =>
-    set((s) => ({ arena: { ...s.arena, active: !s.arena.active, status: 'ready', winner: null } })),
+    set((s) => {
+      const active = !s.arena.active;
+      // Entering the arena collapses the side panel too (one panel at a time) so the
+      // two duelling engines own the workspace; the arena's own controls take over.
+      const out = { arena: { ...s.arena, active, status: 'ready', winner: null } };
+      if (active) {
+        out.sidebarCollapsed = true;
+        try { window.localStorage.setItem('a3d:sidebarCollapsed', 'true'); } catch { /* ignore */ }
+      }
+      return out;
+    }),
   setArenaRival: (rivalId) => set((s) => ({ arena: { ...s.arena, rivalId, status: 'ready', winner: null } })),
   startArena: () => set((s) => ({ arena: { ...s.arena, status: 'battling', winner: null } })),
   resetArena: () => set((s) => ({ arena: { ...s.arena, status: 'ready', winner: null } })),
