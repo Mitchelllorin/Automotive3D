@@ -35,7 +35,7 @@ export const SUBSYSTEMS = {
     highlightColor: '#55efc4',
     description:
       'Air enters through the round air cleaner, mixes with fuel in the carburettor, and the valley intake manifold distributes the charge to both banks. The distributor at the rear fires the plugs in order.',
-    meshNames: ['intake_manifold', 'carburetor', 'air_cleaner', 'distributor', 'pcv_breather', 'throttle_linkage'],
+    meshNames: ['intake_manifold', 'carburetor', 'air_cleaner', 'forced_induction', 'distributor', 'pcv_breather', 'throttle_linkage'],
     explodeOffset: [0, 0.4, 1.2],
   },
   exhaust: {

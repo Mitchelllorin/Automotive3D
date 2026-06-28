@@ -129,6 +129,10 @@ const BASE_BORE_IN = 4.0;
 const BASE_STROKE_IN = 3.48;
 const boreFactorOf = (geom) => (geom?.boreIn ?? BASE_BORE_IN) / BASE_BORE_IN;
 const strokeFactorOf = (geom) => (geom?.strokeIn ?? BASE_STROKE_IN) / BASE_STROKE_IN;
+// A custom motor designed with boost carries its forced-induction hardware (below);
+// these read the designed induction so the model matches the dyno/F.U.S.E. numbers.
+const inductionOf = (geom) => geom?.induction ?? 'na';
+const boostOf = (geom) => geom?.boostPsi ?? 0;
 
 /** Transform props for a cylinder bank. side = +1 (front/+Z) or -1 (rear/-Z). */
 function bankProps(side) {
@@ -728,6 +732,9 @@ function IntakeManifold() {
 }
 
 function Carburettor() {
+  // A blown motor mounts its carburation on the blower hat, not the intake pad —
+  // so the stock carb steps aside for the supercharger (below).
+  if (inductionOf(useContext(GeomContext)) === 'super') return null;
   return (
     <Part name="carburetor" system="intake" position={[0, 0.86, 0]} explode={[0, 2.4, 0]}>
       {/* Carb body (swappable: Edelbrock satin / Holley gold / Sniper EFI black) */}
@@ -747,6 +754,9 @@ function Carburettor() {
 }
 
 function AirCleaner() {
+  // The supercharger's bug-catcher scoop is the air entry on a blown motor — the
+  // round air cleaner only belongs on the naturally-aspirated / turbo carb.
+  if (inductionOf(useContext(GeomContext)) === 'super') return null;
   return (
     <Part name="air_cleaner" system="intake" position={[0, 1.08, 0]} explode={[0, 3.1, 0]}>
       {/* The iconic round chrome air cleaner — domed lid with a rolled rim
@@ -773,6 +783,137 @@ function AirCleaner() {
       </Surface>
     </Part>
   );
+}
+
+// ── Forced induction (custom turbo / supercharger geometry) ──────────────────────
+/**
+ * ForcedInduction – the visual half of the custom builder's induction choice. A
+ * naturally-aspirated motor renders nothing here (the stock carb + air cleaner
+ * stay). Design a supercharger and a Roots blower with a bug-catcher scoop grows
+ * on top of the valley; design a turbo and a turbine/compressor with charge piping
+ * mounts at the front corner. Both scale with the designed boost, so they match the
+ * dyno's boost multiplier and F.U.S.E.'s knock model. Driven by GeomContext, so the
+ * single-engine view and each arena contestant show their own induction.
+ */
+function Supercharger({ boost }) {
+  // Bigger boost → bigger huffer (a 6-71 grows toward an 8-71/14-71 silhouette).
+  const s = 1 + Math.min(boost, 22) / 55;
+  return (
+    <Part name="forced_induction" system="intake" position={[0, 0, 0]} explode={[0, 3.4, 0]}>
+      {/* Manifold adapter capping the valley that the blower bolts down to */}
+      <Surface color={C.alu} metalness={0.55} roughness={0.5} position={[0, 0.8, 0]}>
+        <RBox args={[1.32, 0.1, 0.56]} />
+      </Surface>
+      {/* Blower case + drive — the rotor housing scales up with boost */}
+      <group position={[0, 0.86, 0]} scale={[1, s, s]}>
+        {/* Roots case */}
+        <Surface color="#8d939b" metalness={0.6} roughness={0.42} position={[0, 0.22, 0]}>
+          <RBox args={[1.24, 0.36, 0.5]} />
+        </Surface>
+        {/* Cooling fins across the top */}
+        {[-0.45, -0.27, -0.09, 0.09, 0.27, 0.45].map((x) => (
+          <Surface key={x} color="#7e848c" metalness={0.55} roughness={0.5} position={[x, 0.42, 0]}>
+            <RBox args={[0.05, 0.06, 0.5]} />
+          </Surface>
+        ))}
+        {/* Front + rear bearing plates */}
+        {[0.65, -0.65].map((x) => (
+          <Surface key={x} color={C.alu} metalness={0.6} roughness={0.4} position={[x, 0.22, 0]}>
+            <RBox args={[0.06, 0.42, 0.56]} />
+          </Surface>
+        ))}
+        {/* Drive snout + overdrive blower pulley out the front, belt-driven */}
+        <Spin rate={1.5} position={[0.86, 0.22, 0]}>
+          <Surface mat="steel" rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.07, 0.07, 0.16, 16]} />
+          </Surface>
+          <Surface color={C.black} metalness={0.4} roughness={0.6} position={[0.1, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.18, 0.18, 0.07, 30]} />
+          </Surface>
+        </Spin>
+      </group>
+      {/* Bug-catcher injector hat on top of the blower */}
+      <group position={[0, 0.86 + 0.46 * s, 0]}>
+        <Surface color={C.chrome} metalness={0.9} roughness={0.16} finish="smooth">
+          <RBox args={[0.62, 0.06, 0.46]} />
+        </Surface>
+        <Surface color={C.chrome} metalness={0.92} roughness={0.13} finish="smooth" position={[0, 0.17, 0]}>
+          <RBox args={[0.5, 0.28, 0.42]} />
+        </Surface>
+        {/* forward-facing scoop mouth (the open throat) */}
+        <Surface color="#0c0d10" metalness={0.3} roughness={0.7} position={[0.27, 0.17, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.13, 0.13, 0.04, 14, 1, true]} />
+        </Surface>
+      </group>
+    </Part>
+  );
+}
+
+function Turbo({ boost }) {
+  const s = 1 + Math.min(boost, 22) / 45;
+  const pos = [0.95, -0.38, 0.52]; // low at the front driver corner, toward the viewer
+  return (
+    <Part name="forced_induction" system="intake" position={[0, 0, 0]} explode={[1.7, -1.0, 1.0]}>
+      <group position={pos} scale={s}>
+        {/* Turbine housing (snail) on the exhaust side */}
+        <Turned
+          color={C.iron}
+          metalness={0.55}
+          roughness={0.45}
+          rotation={[Math.PI / 2, 0, 0]}
+          profile={[[0, -0.13], [0.2, -0.13], [0.24, -0.04], [0.24, 0.05], [0.2, 0.13], [0, 0.13]]}
+        />
+        {/* Center cartridge — the spinning wheels, a running-engine cue */}
+        <Spin rate={2.4} position={[0, 0, 0.2]}>
+          <Surface mat="steel" rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.09, 0.09, 0.18, 16]} />
+          </Surface>
+        </Spin>
+        {/* Compressor housing on the intake side */}
+        <Turned
+          color={C.chrome}
+          metalness={0.85}
+          roughness={0.18}
+          finish="smooth"
+          position={[0, 0, 0.4]}
+          rotation={[Math.PI / 2, 0, 0]}
+          profile={[[0, -0.11], [0.18, -0.11], [0.22, -0.02], [0.22, 0.07], [0.15, 0.13], [0, 0.13]]}
+        />
+      </group>
+      {/* Downpipe from the driver header collector down into the turbine */}
+      <Hose
+        points={[[0.42, 0.42, 0.66], [0.72, 0.02, 0.62], [0.95, -0.22, 0.55]]}
+        radius={0.06}
+        color={C.iron}
+        metalness={0.5}
+        roughness={0.5}
+        finish="rough"
+      />
+      {/* Charge pipe from the compressor up and over to the carb inlet */}
+      <Hose
+        points={[
+          [0.95, -0.32, 0.52 + 0.45 * s],
+          [0.6, 0.1, 0.5],
+          [0.24, 0.62, 0.24],
+          [0.02, 0.98, 0.0],
+        ]}
+        radius={0.07}
+        color={C.poly ?? C.chrome}
+        metalness={0.85}
+        roughness={0.2}
+        finish="smooth"
+      />
+    </Part>
+  );
+}
+
+function ForcedInduction() {
+  const geom = useContext(GeomContext);
+  const ind = inductionOf(geom);
+  const boost = boostOf(geom);
+  if (ind === 'super') return <Supercharger boost={boost} />;
+  if (ind === 'turbo') return <Turbo boost={boost} />;
+  return null;
 }
 
 function Distributor() {
@@ -1549,6 +1690,7 @@ export default function EngineAssembly() {
       <IntakeManifold />
       <Carburettor />
       <AirCleaner />
+      <ForcedInduction />
       <Distributor />
       <IntakeBolts />
       <Headers />

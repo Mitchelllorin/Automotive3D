@@ -179,6 +179,23 @@ export const COMPONENTS = {
     maintenanceNote:
       'Inspect and replace the paper/foam element periodically. A wing nut secures the lid — don’t overtighten it.',
   },
+  forced_induction: {
+    id: 'forced_induction',
+    label: 'Forced Induction',
+    subsystemId: 'intake',
+    function:
+      'A supercharger or turbocharger that rams more air into the engine than it could draw on its own. The blower is belt-driven off the crank with a carburettor hat on top; a turbo is spun by exhaust gas and feeds the intake through a charge pipe. Either way the extra air (boost) means more fuel can be burned, so the engine makes more power than its displacement alone would allow. Only appears on a custom motor designed with boost.',
+    tags: ['air-intake', 'boost', 'performance'],
+    relatedComponents: ['intake_manifold', 'carburetor', 'exhaust_manifold'],
+    failureSymptoms: [
+      'Boost creep or overboost stressing the bottom end',
+      'Detonation/knock if boost outruns the fuel octane',
+      'Oil smoke from worn turbo seals or blown blower bearings',
+      'Lost boost from a leaking charge pipe or intercooler',
+    ],
+    maintenanceNote:
+      'Match boost to the compression and fuel — more boost needs higher octane and a stronger rotating assembly. Check charge-pipe couplers and the turbo/blower drive for play; keep the oil clean.',
+  },
   distributor: {
     id: 'distributor',
     label: 'Distributor',
