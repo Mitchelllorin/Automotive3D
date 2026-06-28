@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automotive3D — See Inside Every Engine</title>
+  <meta name="description" content="Automotive3D is a 3D interactive engine simulation platform. Build real engines, swap branded parts, diagnose faults with DTC codes, and battle in the arena — all in your browser." />
+  <meta property="og:title" content="Automotive3D — See Inside Every Engine" />
+  <meta property="og:description" content="Build real parametric engines in 3D. Swap Holley, Edelbrock, MSD parts. Diagnose faults with DTC codes. Design your own motor. Battle in the arena." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://automotive3d.ca/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="https://automotive3d.ca/" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0a0c10;
+      --bg-card:     #111418;
+      --bg-card-alt: #0d1016;
+      --border:      #1e2530;
+      --amber:       #f59e0b;
+      --amber-dim:   #b45309;
+      --amber-glow:  rgba(245,158,11,0.18);
+      --red:         #ef4444;
+      --orange:      #f97316;
+      --green:       #22c55e;
+      --chrome:      #94a3b8;
+      --text:        #f1f5f9;
+      --muted:       #64748b;
+      --accent-bg:   rgba(245,158,11,0.10);
+      --radius:      12px;
+      --radius-lg:   20px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,12,16,0.88);
+      backdrop-filter: blur(12px);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between; height: 64px;
+    }
+    .nav-brand {
+      font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em;
+    }
+    .nav-brand .a3d-auto { color: var(--amber); }
+    .nav-brand .a3d-3d   { color: var(--chrome); }
+    .nav-links { display: flex; align-items: center; gap: 8px; }
+    .nav-link {
+      color: var(--muted); font-size: 0.875rem; padding: 6px 12px;
+      border-radius: 8px; transition: color 0.15s, background 0.15s;
+    }
+    .nav-link:hover { color: var(--text); background: var(--border); }
+    .nav-cta {
+      background: var(--amber); color: #000; font-size: 0.875rem;
+      font-weight: 700; padding: 8px 18px; border-radius: 8px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .nav-cta:hover { background: #e08f0a; transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 100px 0 80px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 600px;
+      background: radial-gradient(ellipse at center, rgba(245,158,11,0.16) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-bg);
+      border: 1px solid rgba(245,158,11,0.35);
+      border-radius: 99px; padding: 5px 14px;
+      font-size: 0.8rem; font-weight: 600; color: #fbbf24;
+      letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem); font-weight: 800;
+      line-height: 1.1; letter-spacing: -0.03em;
+      max-width: 760px; margin: 0 auto 20px;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #d97706 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2.2vw, 1.2rem); color: var(--muted);
+      max-width: 600px; margin: 0 auto 40px; line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      justify-content: center; margin-bottom: 64px;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--amber); color: #000;
+      font-size: 1rem; font-weight: 700; padding: 14px 28px;
+      border-radius: var(--radius);
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      box-shadow: 0 0 32px rgba(245,158,11,0.35);
+    }
+    .btn-primary:hover { background: #e08f0a; transform: translateY(-2px); box-shadow: 0 0 48px rgba(245,158,11,0.5); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text);
+      font-size: 1rem; font-weight: 600; padding: 14px 28px;
+      border-radius: var(--radius); border: 1px solid var(--border);
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+    }
+    .btn-secondary:hover { border-color: rgba(245,158,11,0.5); background: var(--accent-bg); transform: translateY(-2px); }
+
+    /* ── WIRE PILLS (W.I.R.E. equivalent — modes) ── */
+    .mode-strip {
+      display: inline-flex; gap: 12px; flex-wrap: wrap;
+      justify-content: center; margin-top: 56px;
+    }
+    .mode-pill {
+      padding: 5px 16px; border-radius: 99px;
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .pill-build   { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .pill-faults  { background: rgba(239,68,68,0.15);  color: var(--red); }
+    .pill-arena   { background: rgba(249,115,22,0.15); color: var(--orange); }
+    .pill-dyno    { background: rgba(34,197,94,0.15);  color: var(--green); }
+    .pill-design  { background: rgba(148,163,184,0.15);color: var(--chrome); }
+
+    /* ── STATS ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin: 40px 0;
+    }
+    .stat-cell {
+      background: var(--bg-card);
+      padding: 24px 20px;
+      text-align: center;
+    }
+    .stat-num { font-size: 2rem; font-weight: 800; color: var(--amber); display: block; }
+    .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── SECTION ── */
+    .section { padding: 96px 0; }
+    .section-label {
+      text-align: center; font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--amber); font-weight: 700; margin-bottom: 12px;
+    }
+    .section-title {
+      text-align: center; font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800; letter-spacing: -0.03em; margin-bottom: 16px;
+    }
+    .section-sub {
+      text-align: center; color: var(--muted); font-size: 1.05rem;
+      max-width: 560px; margin: 0 auto 64px; line-height: 1.7;
+    }
+
+    /* ── FEATURES GRID ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;
+    }
+    .feat {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px;
+      transition: border-color 0.2s, transform 0.2s, background 0.2s;
+    }
+    .feat:hover { border-color: rgba(245,158,11,0.35); background: var(--bg-card-alt); transform: translateY(-2px); }
+    .feat-icon { font-size: 1.8rem; margin-bottom: 14px; display: block; }
+    .feat h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .feat p  { color: var(--muted); font-size: 0.875rem; line-height: 1.65; }
+    .feat-tag {
+      display: inline-flex; margin-top: 12px; font-size: 0.7rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 3px 9px; border-radius: 99px;
+      background: rgba(245,158,11,0.12); color: var(--amber);
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+    .feat-tag-red {
+      display: inline-flex; margin-top: 12px; font-size: 0.7rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 3px 9px; border-radius: 99px;
+      background: rgba(239,68,68,0.12); color: var(--red);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+
+    /* ── ENGINE ROSTER ── */
+    .engines-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+    }
+    .engine-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px 20px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .engine-card.available:hover { border-color: rgba(245,158,11,0.4); transform: translateY(-2px); }
+    .engine-card.coming-soon { opacity: 0.5; }
+    .engine-badge {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; padding: 2px 8px; border-radius: 99px;
+      margin-bottom: 12px; display: inline-block;
+    }
+    .badge-live { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+    .badge-soon { background: rgba(100,116,139,0.15); color: var(--muted); border: 1px solid var(--border); }
+    .engine-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+    .engine-card p  { font-size: 0.85rem; color: var(--muted); line-height: 1.55; }
+
+    /* ── FAULT TABLE (FUSE equivalent) ── */
+    .fault-section {
+      background: var(--bg-card);
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .fault-inner {
+      max-width: 1120px; margin: 0 auto; padding: 80px 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    }
+    .fault-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(239,68,68,0.12); color: var(--red);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 99px; padding: 4px 12px;
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .fault-inner h2 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800;
+      letter-spacing: -0.5px; margin-bottom: 14px;
+    }
+    .fault-inner p { color: var(--muted); margin-bottom: 14px; font-size: 0.95rem; }
+    .fault-table {
+      width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 340px;
+    }
+    .fault-table th {
+      text-align: left; padding: 8px 10px; color: var(--muted);
+      font-weight: 600; border-bottom: 1px solid var(--border);
+    }
+    .fault-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .fault-table tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .badge-ok   { background: rgba(34,197,94,0.15);  color: var(--green); }
+    .badge-warn { background: rgba(234,179,8,0.15);  color: #eab308; }
+    .badge-crit { background: rgba(249,115,22,0.15); color: var(--orange); }
+
+    /* ── PRODUCTS BAND ── */
+    .brands-strip {
+      padding: 36px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); text-align: center;
+    }
+    .brands-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 20px; }
+    .brands-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 10px; }
+    .brand-pill {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 5px 12px;
+      font-size: 0.78rem; font-weight: 700; color: var(--muted); letter-spacing: 0.03em;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .brand-pill:hover { border-color: rgba(245,158,11,0.4); color: var(--amber); }
+
+    /* ── SUBSYSTEMS ── */
+    .subsystems-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;
+    }
+    .sub-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      display: flex; flex-direction: column; gap: 8px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .sub-card:hover { border-color: rgba(245,158,11,0.3); transform: translateY(-2px); }
+    .sub-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .sub-header { display: flex; align-items: flex-start; gap: 12px; }
+    .sub-card h3 { font-size: 0.95rem; font-weight: 700; }
+    .sub-card p  { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+
+    /* ── PRIVACY BAND ── */
+    .privacy-band {
+      background: linear-gradient(135deg, rgba(245,158,11,0.10) 0%, rgba(148,163,184,0.05) 100%);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: var(--radius-lg); padding: 56px 40px; text-align: center; margin: 0 0 96px;
+    }
+    .privacy-band h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 16px; }
+    .privacy-band p  { color: var(--muted); font-size: 1rem; max-width: 540px; margin: 0 auto; line-height: 1.7; }
+
+    /* ── CTA ── */
+    .cta-section {
+      padding: 96px 0; text-align: center; position: relative; overflow: hidden;
+    }
+    .cta-section::before {
+      content: ''; position: absolute; bottom: -200px; left: 50%;
+      transform: translateX(-50%); width: 700px; height: 500px;
+      background: radial-gradient(ellipse at center, rgba(245,158,11,0.14) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-section h2 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 18px; }
+    .cta-section p  { color: var(--muted); font-size: 1.05rem; max-width: 480px; margin: 0 auto 40px; line-height: 1.7; }
+
+    /* ── FOOTER ── */
+    footer { border-top: 1px solid var(--border); padding: 40px 0; }
+    .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; }
+    .footer-brand { font-weight: 800; font-size: 1rem; }
+    .footer-brand .a3d-auto { color: var(--amber); }
+    .footer-brand .a3d-3d   { color: var(--chrome); }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 20px; }
+    .footer-links a { color: var(--muted); font-size: 0.85rem; transition: color 0.15s; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { color: var(--muted); font-size: 0.8rem; width: 100%; text-align: center; padding-top: 24px; border-top: 1px solid var(--border); margin-top: 20px; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 700px) {
+      .fault-inner { grid-template-columns: 1fr; gap: 32px; }
+      .nav-links .nav-link { display: none; }
+      .hero { padding: 72px 0 56px; }
+      .hero-actions { flex-direction: column; align-items: center; }
+      .hero-actions a { width: 100%; max-width: 320px; justify-content: center; }
+      .privacy-band { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="container">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand"><span class="a3d-auto">Automotive</span><span class="a3d-3d">3D</span></a>
+      <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#engines" class="nav-link">Engines</a>
+        <a href="#faults" class="nav-link">Fault Sim</a>
+        <a href="#parts" class="nav-link">Parts</a>
+        <a href="https://github.com/Mitchelllorin/Automotive3D" class="nav-link" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://play.google.com/store/apps/details?id=com.automotive3d.app" target="_blank" rel="noopener" class="nav-cta">Get the App →</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">🔧 Real engines · Fault diagnosis · Real parts</div>
+    <h1>
+      See Inside Every<br />
+      <span class="grad">Engine, Fault &amp; Bolt</span>
+    </h1>
+    <p class="hero-sub">
+      Automotive3D is a 3D interactive engine simulation platform. Build real parametric engines,
+      swap branded aftermarket parts, diagnose faults with live DTC codes, design your own motor
+      from scratch, and battle in the arena.
+    </p>
+    <div class="hero-actions">
+      <a href="https://play.google.com/store/apps/details?id=com.automotive3d.app" target="_blank" rel="noopener" class="btn-primary">
+        ▶ Get it on Google Play
+      </a>
+      <a href="https://github.com/Mitchelllorin/Automotive3D" target="_blank" rel="noopener" class="btn-secondary">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        View on GitHub
+      </a>
+    </div>
+    <div class="mode-strip">
+      <span class="mode-pill pill-build">🔧 Build</span>
+      <span class="mode-pill pill-faults">💥 Faults</span>
+      <span class="mode-pill pill-arena">⚔️ Arena</span>
+      <span class="mode-pill pill-dyno">📈 Dyno</span>
+      <span class="mode-pill pill-design">🛠 Custom Motor</span>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="container">
+  <div class="stats-strip">
+    <div class="stat-cell"><span class="stat-num">4+</span><div class="stat-label">Engine Platforms</div></div>
+    <div class="stat-cell"><span class="stat-num">7</span><div class="stat-label">Subsystems</div></div>
+    <div class="stat-cell"><span class="stat-num">14</span><div class="stat-label">Part Categories</div></div>
+    <div class="stat-cell"><span class="stat-num">19+</span><div class="stat-label">Real Brands</div></div>
+    <div class="stat-cell"><span class="stat-num">∞</span><div class="stat-label">Custom Motors</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="container">
+    <p class="section-label">What's Inside</p>
+    <h2 class="section-title">A Complete Engine Education Platform</h2>
+    <p class="section-sub">The 3D engine bay is just the entry point. What you find inside goes far deeper than swapping a valve cover.</p>
+    <div class="features-grid">
+      <div class="feat">
+        <span class="feat-icon">🏎</span>
+        <h3>Parametric 3D Engine Sim</h3>
+        <p>A real-time Three.js engine bay where the geometry responds to your choices. Change bore and stroke in the custom designer and watch the pistons and crank geometry update live.</p>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">🔩</span>
+        <h3>Multi-Engine Roster</h3>
+        <p>Build and battle with the SBC 350, SBC 383, SBC 400, and Inline-4. Each engine is a fully spec'd package — its own parts catalog, subsystem map, and fault set. More platforms coming soon.</p>
+        <span class="feat-tag">4+ Engines</span>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">💥</span>
+        <h3>Fault Simulation</h3>
+        <p>Inject real faults — Blown Head Gasket, Low Compression, Oil Pan Leak, Exhaust Manifold Leak, Loose Head Bolts — and see the affected mesh highlight with animated effects and a plain-English explanation. Every fault includes its DTC code.</p>
+        <span class="feat-tag-red">DTC Codes</span>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">🛠</span>
+        <h3>Custom Motor Designer</h3>
+        <p>Define bore, stroke, compression ratio, and induction type. The platform synthesises your spec into a complete engine package on the fly — with its own dyno curve, fault profile, and arena stats. Save multiple designs.</p>
+        <span class="feat-tag">Parametric</span>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">⚔️</span>
+        <h3>Battle Arena</h3>
+        <p>Put two engines head-to-head in the arena. Bench one motor against another — stock vs. built, factory vs. custom — and see the performance delta across power, torque, and fault tolerance.</p>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">📈</span>
+        <h3>Dyno</h3>
+        <p>Run your engine on the virtual dyno. See how your part choices and motor specs translate into a power and torque curve before you spend a dollar on parts.</p>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">🏷</span>
+        <h3>Real Branded Parts Store</h3>
+        <p>Every aftermarket part is a real product with an actual SKU, price, rating, and buy link. Tap any part to go straight to Summit Racing. Parts affect the live 3D appearance via material overrides.</p>
+        <span class="feat-tag">Summit Racing linked</span>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">🔍</span>
+        <h3>Explode / Teardown View</h3>
+        <p>Spread the entire engine apart layer by layer. Each subsystem flies to its own offset so you can inspect clearances, identify components, and understand how everything assembles.</p>
+      </div>
+      <div class="feat">
+        <span class="feat-icon">🎓</span>
+        <h3>Guided Tour</h3>
+        <p>A step-through coachmark walkthrough runs automatically for new users — covering the engine bay, build panel, fault simulator, and arena. Replayable any time from the ? button.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENGINE ROSTER -->
+<section class="section" id="engines" style="padding-top:0;">
+  <div class="container">
+    <p class="section-label">Engine Roster</p>
+    <h2 class="section-title">Pick your platform</h2>
+    <p class="section-sub">Each engine is a self-contained package with its own parts, faults, and arena stats. Lock in your motor and build from there.</p>
+    <div class="engines-grid">
+      <div class="engine-card available">
+        <span class="engine-badge badge-live">Live</span>
+        <h3>Small-Block Chevy 350</h3>
+        <p>The classic 5.7L SBC. The baseline motor — proven, tunable, and deeply documented. Every aftermarket brand makes something for it.</p>
+      </div>
+      <div class="engine-card available">
+        <span class="engine-badge badge-live">Live</span>
+        <h3>SBC 383 Stroker</h3>
+        <p>The 350 block bored and stroked to 383 ci. More displacement, more torque — same bolt pattern, entirely different personality.</p>
+      </div>
+      <div class="engine-card available">
+        <span class="engine-badge badge-live">Live</span>
+        <h3>SBC 400</h3>
+        <p>The largest production small-block. Big bore, long stroke — the torque-first platform for heavy-duty and tow applications.</p>
+      </div>
+      <div class="engine-card available">
+        <span class="engine-badge badge-live">Live</span>
+        <h3>Inline-4</h3>
+        <p>The efficient four-cylinder platform. Different architecture, different fault profile, different aftermarket — same depth of simulation.</p>
+      </div>
+      <div class="engine-card coming-soon">
+        <span class="engine-badge badge-soon">Coming Soon</span>
+        <h3>More Platforms</h3>
+        <p>Additional engines are in the roster — announced before they're fully drawn. Check back as the platform grows.</p>
+      </div>
+      <div class="engine-card available" style="border-color:rgba(245,158,11,0.35);">
+        <span class="engine-badge badge-live">Yours</span>
+        <h3>Custom Motor</h3>
+        <p>Design your own engine from bore, stroke, CR, and induction. The 3D geometry updates live. Save as many custom motors as you want.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAULT SIMULATION -->
+<div class="fault-section" id="faults">
+  <div class="fault-inner">
+    <div>
+      <div class="fault-tag">💥 Fault Simulation Engine</div>
+      <h2>See What Happens When It Breaks — Not Just When It Works</h2>
+      <p>Every other engine visualiser shows you how things run. Automotive3D shows exactly what happens when they <strong>fail</strong> — in 3D, with physics-accurate explanations and real DTC codes.</p>
+      <p>Inject a fault and the affected mesh highlights with animated effects. A plain-English explanation describes the failure at the component level — what broke, why, what the symptoms are, and how to fix it.</p>
+      <p>The same fault engine covers every motor in the roster, including your custom designs.</p>
+    </div>
+    <div>
+      <table class="fault-table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Example Fault</th>
+            <th>DTC</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-ok">Normal</span></td><td>Engine within spec</td><td>—</td></tr>
+          <tr><td><span class="badge badge-warn">Warning</span></td><td>Low Compression</td><td>P0301</td></tr>
+          <tr><td><span class="badge badge-warn">Warning</span></td><td>Oil Pan Leak</td><td>—</td></tr>
+          <tr><td><span class="badge badge-warn">Warning</span></td><td>Exhaust Manifold Leak</td><td>P0171</td></tr>
+          <tr><td><span class="badge badge-crit">Critical</span></td><td>Blown Head Gasket</td><td>P0301</td></tr>
+          <tr><td><span class="badge badge-crit">Critical</span></td><td>Loose Head Bolts</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:14px;font-size:0.8rem;color:var(--muted);">Visual effects include: <em>pulse, flicker, fade, highlight, particle burst</em></p>
+    </div>
+  </div>
+</div>
+
+<!-- SUBSYSTEMS -->
+<section class="section" id="subsystems">
+  <div class="container">
+    <p class="section-label">Subsystems</p>
+    <h2 class="section-title">7 Subsystems, fully mapped</h2>
+    <p class="section-sub">Every part in the engine belongs to a subsystem. Tap any system to isolate and highlight it — the rest fades so you can focus.</p>
+    <div class="subsystems-grid">
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#e74c3c;"></div><h3>Short Block</h3></div>
+        <p>Block, pistons, crankshaft, oil pan, dipstick, oil filter, senders.</p>
+      </div>
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#3498db;"></div><h3>Heads &amp; Valvetrain</h3></div>
+        <p>Cylinder head, camshaft, valve covers, valvetrain — seals the bores and works the valves.</p>
+      </div>
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#2ecc71;"></div><h3>Induction</h3></div>
+        <p>Intake manifold, carburettor, air cleaner, distributor, PCV breather, throttle linkage.</p>
+      </div>
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#95a5a6;"></div><h3>Exhaust</h3></div>
+        <p>Exhaust manifold / tubular headers — collects spent gases from each bank's ports.</p>
+      </div>
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#9b59b6;"></div><h3>Driveline</h3></div>
+        <p>Flywheel, bell housing, starter — where the engine meets the transmission.</p>
+      </div>
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#00cec9;"></div><h3>Cooling &amp; Belt Drive</h3></div>
+        <p>Water pump, cooling fan, drive belt, thermostat — keeps everything at operating temperature.</p>
+      </div>
+      <div class="sub-card">
+        <div class="sub-header"><div class="sub-dot" style="background:#e17055;"></div><h3>Charging</h3></div>
+        <p>Alternator — belt-driven generator that keeps the battery charged while running.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REAL PARTS -->
+<div class="brands-strip" id="parts">
+  <div class="container">
+    <p class="brands-label">Real brands · Real SKUs · Real buy links (Summit Racing)</p>
+    <div class="brands-row">
+      <span class="brand-pill">Holley</span>
+      <span class="brand-pill">Edelbrock</span>
+      <span class="brand-pill">MSD</span>
+      <span class="brand-pill">K&amp;N</span>
+      <span class="brand-pill">NGK</span>
+      <span class="brand-pill">Denso</span>
+      <span class="brand-pill">ACDelco</span>
+      <span class="brand-pill">Hedman</span>
+      <span class="brand-pill">Hooker</span>
+      <span class="brand-pill">Pertronix</span>
+      <span class="brand-pill">Gates</span>
+      <span class="brand-pill">Flexalite</span>
+      <span class="brand-pill">Powermaster</span>
+      <span class="brand-pill">TuffStuff</span>
+      <span class="brand-pill">Stant</span>
+      <span class="brand-pill">Fram</span>
+      <span class="brand-pill">Mobil 1</span>
+      <span class="brand-pill">Mr. Gasket</span>
+      <span class="brand-pill">Patriot</span>
+    </div>
+  </div>
+</div>
+
+<!-- PRIVACY BAND -->
+<div class="container" style="padding-top:96px;">
+  <div class="privacy-band">
+    <div style="font-size:3rem;margin-bottom:16px;">🔒</div>
+    <h2>Your builds stay on your device</h2>
+    <p>Automotive3D runs entirely on your phone. No account required, no data uploaded, no tracking. Your engine configurations and custom motors are saved locally — private by design.</p>
+  </div>
+</div>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Ready to build?</h2>
+    <p>No account. No signup. Pick an engine and start wrenching.</p>
+    <div class="hero-actions">
+      <a href="https://play.google.com/store/apps/details?id=com.automotive3d.app" target="_blank" rel="noopener" class="btn-primary">▶ Get it on Google Play</a>
+      <a href="https://github.com/Mitchelllorin/Automotive3D" target="_blank" rel="noopener" class="btn-secondary">
+        <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        Star on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand"><span class="a3d-auto">Automotive</span><span class="a3d-3d">3D</span></div>
+      <div class="footer-links">
+        <a href="https://github.com/Mitchelllorin/Automotive3D" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://play.google.com/store/apps/details?id=com.automotive3d.app" target="_blank" rel="noopener">Google Play</a>
+        <a href="./privacy.html">Privacy Policy</a>
+        <a href="./datasafety.html">Data Safety</a>
+        <a href="mailto:hello@automotive3d.ca">Contact</a>
+      </div>
+    </div>
+    <p class="footer-copy">© 2026 Automotive3D — Founded and built by Mitchell Lorin McKnight. All processing is 100% on-device.</p>
+  </div>
+</footer>
+
+</body>
+</html>
