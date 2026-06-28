@@ -2874,7 +2874,29 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.62);
-  pointer-events: auto;
+  /* Visual veil only — never capture pointer events, so the engine/UI beneath stays
+     fully usable while the tour explains it. */
+  pointer-events: none;
+}
+/* When a step invites you to play with the 3D scene, lighten the veil so the engine
+   reads clearly and obviously grabbable. */
+.tour-dim.interactive {
+  background: rgba(0, 0, 0, 0.32);
+}
+.tour-try {
+  margin-top: 0.55rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #7ee787;
+  background: rgba(63, 185, 80, 0.12);
+  border: 1px solid rgba(63, 185, 80, 0.4);
+  border-radius: 8px;
+  animation: tour-try-pulse 1.8s ease-in-out infinite;
+}
+@keyframes tour-try-pulse {
+  0%, 100% { border-color: rgba(63, 185, 80, 0.35); }
+  50% { border-color: rgba(63, 185, 80, 0.85); }
 }
 /* Spotlight: a transparent box whose massive shadow dims everything else. */
 .tour-spot {
@@ -2887,13 +2909,16 @@ body {
 }
 .tour-card {
   position: fixed;
-  width: 300px;
+  width: 290px;
   max-width: calc(100vw - 24px);
-  background: #161b22;
-  border: 1px solid #30363d;
+  /* Translucent + blurred so it explains WITHOUT hiding the workspace behind it. */
+  background: rgba(22, 27, 34, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 110, 123, 0.5);
   border-radius: 14px;
-  padding: 0.9rem 1rem 0.8rem;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  padding: 0.8rem 0.9rem 0.7rem;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   z-index: 1001;
   animation: tour-pop 0.18s ease;

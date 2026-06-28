@@ -20,8 +20,9 @@ export const TOUR_STEPS = [
   {
     id: 'scene',
     target: null,
+    interactive: true, // invite the user to actually orbit/zoom/tap right now
     title: 'Your engine, in 3D',
-    body: 'The whole view is a live 3D engine. Drag to orbit, pinch or scroll to zoom, and tap any part to inspect it.',
+    body: 'The whole view is a live 3D engine. Go ahead — drag to orbit, pinch or scroll to zoom, and tap any part to inspect it. The tour waits for you.',
     setup: { sidebar: 'closed', controls: 'open' },
   },
   {

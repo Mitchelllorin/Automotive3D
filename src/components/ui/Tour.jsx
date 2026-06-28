@@ -119,9 +119,13 @@ export default function Tour() {
   const vh = window.innerHeight;
 
   // Card position: centred when no target, else beside the spotlight, clamped.
+  // Interactive centred steps (e.g. "try the 3D scene") dock the card at the bottom
+  // so the engine above it is free to grab — the whole point is to let you try it.
   let cardStyle;
   if (!rect) {
-    cardStyle = { left: vw / 2 - CARD_W / 2, top: Math.max(80, vh / 2 - 120) };
+    cardStyle = step.interactive
+      ? { left: vw / 2 - CARD_W / 2, bottom: 24, top: 'auto' }
+      : { left: vw / 2 - CARD_W / 2, top: Math.max(80, vh / 2 - 120) };
   } else {
     const below = rect.top + rect.height + GAP;
     const above = rect.top - GAP;
@@ -148,7 +152,9 @@ export default function Tour() {
           }}
         />
       ) : (
-        <div className="tour-dim" onClick={end} />
+        // A purely-visual veil — it must NOT capture pointer events, so the user can
+        // actually drag/zoom/tap the 3D engine underneath while the card explains it.
+        <div className={`tour-dim ${step.interactive ? 'interactive' : ''}`} />
       )}
 
       <div className="tour-card" style={cardStyle}>
@@ -162,6 +168,7 @@ export default function Tour() {
         </div>
         <h3 className="tour-title">{step.title}</h3>
         <p className="tour-body">{step.body}</p>
+        {step.interactive && <div className="tour-try">✋ Your turn — try it now, then hit Next</div>}
         <div className="tour-actions">
           <button className="tour-skip" onClick={end}>
             Skip

@@ -85,23 +85,29 @@ export default function SceneLogo({ anchor = [0.55, 0.66], scale = 0.16, drift =
       rod.current.position.y = Math.sin(t * 0.95 * speed + 0.6) * 0.5 * bounce;
       rod.current.rotation.y = Math.sin(t * 0.5 * speed) * 0.4;
     } else {
-      rod.current.position.set(0, 0, 0); // stationary
+      // Header mark: planted, gently swaying on an invisible vertical center rod —
+      // it turns to show its 3D depth then eases back, never spinning all the way
+      // around (so the text never faces backwards). layout.position.x = -width/2 puts
+      // that rod through the logo's center, so it pivots in place.
+      rod.current.position.set(0, 0, 0);
       rod.current.rotation.x = 0;
-      rod.current.rotation.y += delta * 0.6; // continuous spin on its axis
+      rod.current.rotation.y = Math.sin(t * 0.5) * 0.55; // ±~32° gentle sway
     }
 
-    // Ease opacity and apply to every glyph material.
+    // Ease opacity toward the target, then push it onto every glyph material —
+    // every frame, not only while the eased value is moving. The Text3D glyphs load
+    // asynchronously (font fetch); if we gated on "still easing" they could appear
+    // AFTER the value settled and get stuck at the material default (opaque). This
+    // also self-heals when a mesh mounts late.
     const cur = opacityRef.current;
-    if (Math.abs(cur - opacity) > 0.003) {
-      const next = cur + (opacity - cur) * 0.15;
-      opacityRef.current = next;
-      meshes.current.forEach((m) => {
-        if (m?.material) {
-          m.material.transparent = next < 0.99;
-          m.material.opacity = next;
-        }
-      });
-    }
+    const next = Math.abs(cur - opacity) > 0.003 ? cur + (opacity - cur) * 0.15 : opacity;
+    opacityRef.current = next;
+    meshes.current.forEach((m) => {
+      if (m?.material && Math.abs(m.material.opacity - next) > 0.001) {
+        m.material.transparent = next < 0.99;
+        m.material.opacity = next;
+      }
+    });
   });
 
   return (

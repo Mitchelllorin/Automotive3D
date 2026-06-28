@@ -179,7 +179,10 @@ const useAppStore = create((set) => ({
 
   // ── 3D logo FX — floating logo controls (matches the sibling apps), persisted ──
   logoFx: (() => {
-    const def = { opacity: 1, speed: 1, bounce: 0.5 };
+    // The floating workspace logo defaults to nearly transparent — a subtle ghosted
+    // watermark, not a label competing with the engine. (The header mark is opaque;
+    // it passes useFx={false}.) Adjustable in Settings; raise opacity to make it pop.
+    const def = { opacity: 0.12, speed: 1, bounce: 0.5 };
     if (typeof window === 'undefined') return def;
     try {
       return { ...def, ...(JSON.parse(window.localStorage.getItem('a3d:logoFx')) || {}) };

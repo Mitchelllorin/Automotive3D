@@ -236,38 +236,89 @@ function CameraResetter() {
   return null;
 }
 
+// On-canvas panels the engine should dodge so it stays centered in the clear area.
+// Each has a known docked side; the tutorial card moves around, so it's 'auto'
+// (its hugged edge is detected each tick). The side panel/tabs aren't here — they
+// live outside the canvas, which simply resizes, re-centering the engine for free.
+const VIEW_OCCLUDERS = [
+  { sel: '.engine-control', side: 'left' }, // dyno / run controls
+  { sel: '.engine-expand-chip', side: 'left' }, // its collapsed chip
+  { sel: '.arena3d-panel', side: 'left' }, // battle controls
+  { sel: '.tour-card', side: 'auto' }, // the guided-tour coachmark
+];
+
 /**
- * Keeps the engine optically centered in the *unobstructed* viewport. The floating
- * engine-control menu covers the left edge of the canvas; this eases a camera view
- * offset so the engine sits centered in the area to the right of it — and pulls
- * back to true center the moment that menu is dismissed. Pure projection shift, so
- * orbit/zoom are untouched and the user never has to pan manually.
+ * Keeps the engine optically centered in the *unobstructed* viewport. Any on-canvas
+ * panel — the dyno controls, the battle panel, and now the tutorial card — covers
+ * part of the canvas; this measures every visible one, finds the free rectangle, and
+ * eases a camera view offset so the engine sits centered in what's left (horizontally
+ * AND vertically), pulling back to true center the moment the panels clear. Same
+ * push/pull the side tabs get for free via canvas resize — generalised to overlays.
+ * Pure projection shift, so orbit/zoom are untouched and the user never has to pan.
  */
 function ViewOffsetController() {
   const { camera, gl, size } = useThree();
-  const cur = useRef(0);
-  const target = useRef(0);
+  const curX = useRef(0);
+  const curY = useRef(0);
+  const tgtX = useRef(0);
+  const tgtY = useRef(0);
   const acc = useRef(0);
   useFrame((_, dt) => {
     acc.current += dt;
-    if (acc.current >= 0.15) {
+    if (acc.current >= 0.12) {
       acc.current = 0;
       const canvas = gl.domElement.getBoundingClientRect();
-      let inset = 0;
-      const el = document.querySelector('.engine-control');
-      if (el) {
+      const cw = canvas.width;
+      const ch = canvas.height;
+      let leftOcc = 0;
+      let rightOcc = 0;
+      let topOcc = 0;
+      let bottomOcc = 0;
+      for (const { sel, side: hint } of VIEW_OCCLUDERS) {
+        const el = document.querySelector(sel);
+        if (!el) continue;
         const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) inset = Math.max(0, r.right - canvas.left);
+        if (r.width <= 0 || r.height <= 0) continue;
+        // Clip to the canvas — a panel sitting off the canvas occludes nothing.
+        const il = Math.max(r.left, canvas.left);
+        const ir = Math.min(r.right, canvas.right);
+        const it = Math.max(r.top, canvas.top);
+        const ib = Math.min(r.bottom, canvas.bottom);
+        if (ir <= il || ib <= it) continue;
+        // A near-fullscreen overlay (e.g. a modal) can't be dodged — ignore it.
+        if (ir - il > cw * 0.9 && ib - it > ch * 0.9) continue;
+        let side = hint;
+        if (side === 'auto') {
+          // Dock to whichever canvas edge the panel hugs — but ONLY if it actually
+          // hugs one. A panel floating in the middle (e.g. the centred welcome card)
+          // has no clear side, so we leave the engine where it is rather than shoving
+          // it off toward an arbitrary edge.
+          const gL = il - canvas.left;
+          const gR = canvas.right - ir;
+          const gT = it - canvas.top;
+          const gB = canvas.bottom - ib;
+          const m = Math.min(gL, gR, gT, gB);
+          if (m > Math.min(cw, ch) * 0.1) continue; // not edge-docked → don't push
+          side = m === gL ? 'left' : m === gR ? 'right' : m === gT ? 'top' : 'bottom';
+        }
+        if (side === 'left') leftOcc = Math.max(leftOcc, ir - canvas.left);
+        else if (side === 'right') rightOcc = Math.max(rightOcc, canvas.right - il);
+        else if (side === 'top') topOcc = Math.max(topOcc, ib - canvas.top);
+        else if (side === 'bottom') bottomOcc = Math.max(bottomOcc, canvas.bottom - it);
       }
-      target.current = inset;
+      // Shift needed to center the engine in the free rectangle (screen px).
+      tgtX.current = (leftOcc - rightOcc) / 2;
+      tgtY.current = (topOcc - bottomOcc) / 2;
     }
-    cur.current += (target.current - cur.current) * Math.min(1, dt * 6);
-    if (cur.current < 0.5) {
+    const k = Math.min(1, dt * 6);
+    curX.current += (tgtX.current - curX.current) * k;
+    curY.current += (tgtY.current - curY.current) * k;
+    if (Math.abs(curX.current) < 0.5 && Math.abs(curY.current) < 0.5) {
       if (camera.view && camera.view.enabled) camera.clearViewOffset();
     } else {
-      // Shift the rendered frustum right by half the occluded width → engine
-      // sits centered in the clear area.
-      camera.setViewOffset(size.width, size.height, -cur.current / 2, 0, size.width, size.height);
+      // Negative offset moves the rendered content the opposite way, so the engine
+      // slides toward the open space (right/down for a left/top panel, etc.).
+      camera.setViewOffset(size.width, size.height, -curX.current, -curY.current, size.width, size.height);
     }
   });
   return null;
