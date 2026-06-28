@@ -15,7 +15,7 @@ import { Html } from '@react-three/drei';
 import { getAssembly } from '../../assemblies/registry';
 import useAppStore from '../../store/appStore';
 import { simState } from '../../lib/simState';
-import { FailureContext, BuildContext, CamContext } from '../../lib/engineInstance';
+import { FailureContext, BuildContext, CamContext, GeomContext, engineGeom } from '../../lib/engineInstance';
 import { makeFailureState, writeFailure } from '../../lib/failureState';
 import { assessEngine, FUELS } from '../../lib/engineStress';
 import { ENVIRONMENTS } from '../../lib/dyno';
@@ -209,7 +209,9 @@ export default function ArenaStage() {
         <FailureContext.Provider value={failYou}>
           <BuildContext.Provider value={partVariants}>
             <CamContext.Provider value={yourCam}>
-              <YouModel />
+              <GeomContext.Provider value={engineGeom(youEngine)}>
+                <YouModel />
+              </GeomContext.Provider>
             </CamContext.Provider>
           </BuildContext.Provider>
         </FailureContext.Provider>
@@ -221,7 +223,9 @@ export default function ArenaStage() {
         <FailureContext.Provider value={failRival}>
           <BuildContext.Provider value={rival.build}>
             <CamContext.Provider value={rivalCam}>
-              <RivalModel />
+              <GeomContext.Provider value={engineGeom(rivalEngine)}>
+                <RivalModel />
+              </GeomContext.Provider>
             </CamContext.Provider>
           </BuildContext.Provider>
         </FailureContext.Provider>

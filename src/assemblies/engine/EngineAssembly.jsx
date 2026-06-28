@@ -22,7 +22,7 @@ import { HexBolt, HexNut } from '../../components/scene/fasteners';
 import { boltRect } from '../../components/scene/boltLayout';
 import { simState } from '../../lib/simState';
 import { explodeState } from '../../lib/explodeState';
-import { FailureContext, CamContext } from '../../lib/engineInstance';
+import { FailureContext, CamContext, GeomContext } from '../../lib/engineInstance';
 import FailureEffects from '../../components/scene/FailureEffects';
 import { cylinderPistonDrop, CRANK_THROW, STROKE, CYLINDERS, valveLift } from '../../data/engineSpec';
 import { textTexture } from '../../lib/decals';
@@ -121,6 +121,15 @@ const BANK_ANGLE = Math.PI / 4; // 45° each side → 90° included V
 const BANK_X = [-0.78, -0.26, 0.26, 0.78]; // four cylinders per bank along the crank axis
 const VALLEY = [0, 0.2, 0]; // pivot the banks splay around
 
+// This assembly is drawn at the Small-Block 350's bore/stroke; the active engine's
+// designed dimensions (from GeomContext) are normalised against these references so
+// a bigger bore widens the cylinders and a longer stroke lengthens the piston travel
+// + crank throw. (See lib/engineInstance GeomContext.)
+const BASE_BORE_IN = 4.0;
+const BASE_STROKE_IN = 3.48;
+const boreFactorOf = (geom) => (geom?.boreIn ?? BASE_BORE_IN) / BASE_BORE_IN;
+const strokeFactorOf = (geom) => (geom?.strokeIn ?? BASE_STROKE_IN) / BASE_STROKE_IN;
+
 /** Transform props for a cylinder bank. side = +1 (front/+Z) or -1 (rear/-Z). */
 function bankProps(side) {
   return { position: VALLEY, rotation: [side * BANK_ANGLE, 0, 0] };
@@ -216,6 +225,7 @@ function Bore({ position, rotation = [0, 0, 0], r = 0.03, depth = 0.07, seg = 12
 }
 
 function CylinderBlock() {
+  const bf = boreFactorOf(useContext(GeomContext)); // widen the bores for a bigger bore
   return (
     <Part name="engine_block" system="block" position={[0, 0, 0]} explode={[0, 0, 0]}>
       {/* ── Crankcase ───────────────────────────────────────────── */}
@@ -250,7 +260,7 @@ function CylinderBlock() {
           )}
           {/* Open bores through the deck — honed cylinder wall + dark opening */}
           {BANK_X.map((x) => (
-            <group key={`bore${x}`} position={[x, 0, 0]}>
+            <group key={`bore${x}`} position={[x, 0, 0]} scale={[bf, 1, bf]}>
               <Surface mat="machinedSteel" finish="machined" position={[0, 0.56, 0]}>
                 <cylinderGeometry args={[0.122, 0.122, 0.1, 30, 1, true]} />
               </Surface>
@@ -262,7 +272,7 @@ function CylinderBlock() {
           ))}
           {/* Cylinder bores */}
           {BANK_X.map((x) => (
-            <group key={x} position={[x, 0.42, 0]}>
+            <group key={x} position={[x, 0.42, 0]} scale={[bf, 1, bf]}>
               <mesh>
                 <cylinderGeometry args={[0.13, 0.13, 0.34, 28, 1, true]} />
                 <meshStandardMaterial color={C.deck} metalness={0.7} roughness={0.3} side={THREE.DoubleSide} />
@@ -410,7 +420,8 @@ function Crankshaft() {
     { x: -0.2, a: 180 },
     { x: -0.6, a: 270 },
   ];
-  const r = CRANK_THROW;
+  const geom = useContext(GeomContext);
+  const r = CRANK_THROW * strokeFactorOf(geom); // a stroker swings the throws wider
   return (
     <Part name="crankshaft" system="block" position={[0, -0.18, 0]} explode={[0, -1.5, 0]}>
       <Spin rate={1}>
@@ -464,13 +475,19 @@ function Crankshaft() {
 /** One piston + rod that reciprocates along its bore from the slider-crank. */
 function AnimatedPiston({ id, x }) {
   const ref = useRef();
+  const geom = useContext(GeomContext);
+  const sf = strokeFactorOf(geom); // longer stroke → travels further
+  const bf = boreFactorOf(geom); // bigger bore → wider piston
   useFrame(() => {
     if (ref.current) {
-      ref.current.position.y = 0.48 - cylinderPistonDrop(id, simState.crankAngle);
+      // TDC stays at the deck (drop = 0); a longer stroke just reaches deeper at BDC.
+      ref.current.position.y = 0.48 - cylinderPistonDrop(id, simState.crankAngle) * sf;
     }
   });
   return (
-    <group ref={ref} position={[x, 0.48, 0]}>
+    // Scale the cross-section (x/z) by the bore factor; the group's own position +
+    // vertical travel are unaffected, so only the piston *diameter* changes.
+    <group ref={ref} position={[x, 0.48, 0]} scale={[bf, 1, bf]}>
       {/* Crown */}
       <Surface color={C.steel} metalness={0.78} roughness={0.34} finish="machined">
         <cylinderGeometry args={[0.118, 0.118, 0.12, 28]} />

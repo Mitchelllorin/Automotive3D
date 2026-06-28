@@ -32,6 +32,7 @@ import { COMPONENTS } from '../../data/components';
 import { SUBSYSTEMS } from '../../data/subsystems';
 import ArenaStage from './ArenaStage';
 import { RIVALS } from '../../lib/battle';
+import { GeomContext, engineGeom } from '../../lib/engineInstance';
 
 // Phones/tablets get a lighter render pipeline so the 3D stays smooth: capped
 // pixel ratio and cheaper ambient occlusion instead of full-res 2× + medium AO.
@@ -413,7 +414,8 @@ export default function VehicleScene() {
   const activeEngineId = useAppStore((s) => s.activeEngineId);
 
   // The model + camera framing follow whichever motor is active in the builder.
-  const assembly = getAssembly(getEngine(activeEngineId).assemblyId);
+  const activeEngine = getEngine(activeEngineId);
+  const assembly = getAssembly(activeEngine.assemblyId);
   const Model = assembly.Component;
   const containerRef = useRef();
 
@@ -472,7 +474,13 @@ export default function VehicleScene() {
         <StudioRig />
 
         <Suspense fallback={<LoadingFallback />}>
-          {arenaActive ? <ArenaStage /> : <Model />}
+          {arenaActive ? (
+            <ArenaStage />
+          ) : (
+            <GeomContext.Provider value={engineGeom(activeEngine)}>
+              <Model />
+            </GeomContext.Provider>
+          )}
         </Suspense>
 
         {/* Brand logos, in-canvas so they composite with no black box: the header

@@ -11,12 +11,20 @@
  * exhaust + turbo on -Z. Reads BuildContext/FailureContext defaults so it works in
  * the single-engine view and as either arena contestant unchanged.
  */
-import { useRef } from 'react';
+import { useRef, useContext } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import Part, { Surface, RBox } from '../../components/scene/Part';
 import { simState } from '../../lib/simState';
 import { explodeState } from '../../lib/explodeState';
+import { GeomContext } from '../../lib/engineInstance';
+
+// Drawn at the base 2.0 turbo-four's bore/stroke (86 mm square); a custom built on
+// this platform feeds its designed dimensions through GeomContext, normalised here.
+const BASE_BORE_IN = 3.386;
+const BASE_STROKE_IN = 3.386;
+const boreFactorOf = (g) => (g?.boreIn ?? BASE_BORE_IN) / BASE_BORE_IN;
+const strokeFactorOf = (g) => (g?.strokeIn ?? BASE_STROKE_IN) / BASE_STROKE_IN;
 
 // Modern turbo-four palette: raw/satin aluminium, black plastic cover, ceramic
 // header, polished charge pipes — nothing like the orange iron V8.
@@ -77,11 +85,14 @@ function Turned({ profile, segments = 48, ...props }) {
 /** A reciprocating piston + rod, shown when the assembly is exploded/cut away. */
 function Piston({ i, x }) {
   const ref = useRef();
+  const geom = useContext(GeomContext);
+  const sf = strokeFactorOf(geom); // longer stroke → travels further
+  const bf = boreFactorOf(geom); // bigger bore → wider piston
   useFrame(() => {
-    if (ref.current) ref.current.position.y = DECK_Y - 0.12 - pistonDrop(i, simState.crankAngle);
+    if (ref.current) ref.current.position.y = DECK_Y - 0.12 - pistonDrop(i, simState.crankAngle) * sf;
   });
   return (
-    <group ref={ref} position={[x, DECK_Y - 0.12, 0]}>
+    <group ref={ref} position={[x, DECK_Y - 0.12, 0]} scale={[bf, 1, bf]}>
       {/* slug */}
       <Surface color={C.steel} metalness={0.8} roughness={0.3}>
         <cylinderGeometry args={[0.11, 0.11, 0.16, 20]} />
