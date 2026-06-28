@@ -7,6 +7,16 @@ import { explodeState } from '../lib/explodeState';
 import { setActiveCam } from '../data/engineSpec';
 import { getActiveVariant } from '../data/products';
 import { getEngine, DEFAULT_ENGINE_ID } from '../data/engines';
+import {
+  registerSavedCustomEngines,
+  loadCustomSpecs,
+  saveCustomEngine,
+  deleteCustomEngine,
+} from '../data/engines/customEngine';
+
+// Synthesize + register every saved user-designed motor BEFORE the store initializes,
+// so a persisted active engine id (which may be a custom one) resolves on first render.
+registerSavedCustomEngines();
 
 /** Push the selected camshaft's profile into the live valve animation. */
 function applyCamProfile(variantId) {
@@ -102,6 +112,45 @@ const useAppStore = create((set) => ({
       if (!pkg || !pkg.available) return {};
       if (typeof window !== 'undefined') window.localStorage.setItem('a3d:engineId', pkg.id);
       return { activeEngineId: pkg.id };
+    }),
+
+  // ── Custom motors — the user designs their own (bore/stroke/CR/induction) ──────
+  // A custom motor is a small spec synthesized into a full engine package on the fly
+  // (see data/engines/customEngine). Specs persist; packages register so the dyno,
+  // garage, F.U.S.E. and arena treat a designed motor exactly like a roster one.
+  customEngines: loadCustomSpecs(), // the saved specs (for the roster + re-editing)
+  customVersion: 0, // bumped on add/remove so roster UIs (engineList) recompute
+  designerOpen: false,
+  designerSpec: null, // the spec being edited (null when designing fresh)
+  /** Open the engine designer — optionally seeded with an existing spec to edit. */
+  openDesigner: (spec = null) => set({ designerOpen: true, designerSpec: spec }),
+  closeDesigner: () => set({ designerOpen: false, designerSpec: null }),
+  /** Create or update a custom motor, register it, and make it the active engine. */
+  addCustomEngine: (spec) =>
+    set((state) => {
+      const pkg = saveCustomEngine(spec);
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:engineId', pkg.id);
+      return {
+        customEngines: loadCustomSpecs(),
+        customVersion: state.customVersion + 1,
+        activeEngineId: pkg.id,
+        designerOpen: false,
+        designerSpec: null,
+      };
+    }),
+  /** Delete a custom motor; if it was active, fall back to the default platform. */
+  removeCustomEngine: (id) =>
+    set((state) => {
+      deleteCustomEngine(id);
+      const active = state.activeEngineId === id ? DEFAULT_ENGINE_ID : state.activeEngineId;
+      if (typeof window !== 'undefined' && active !== state.activeEngineId) {
+        window.localStorage.setItem('a3d:engineId', active);
+      }
+      return {
+        customEngines: loadCustomSpecs(),
+        customVersion: state.customVersion + 1,
+        activeEngineId: active,
+      };
     }),
 
   // ── Garage: part swapping / product placement ─────────────────

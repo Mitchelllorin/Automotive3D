@@ -32,6 +32,11 @@ export function registerEngine(pkg) {
   return pkg;
 }
 
+/** Remove a registered motor (used to drop a deleted custom engine). */
+export function unregisterEngine(id) {
+  if (id && id !== DEFAULT_ENGINE_ID) delete ENGINES[id];
+}
+
 /** Every registered motor (available + coming-soon), for roster UIs. */
 export function engineList() {
   return Object.values(ENGINES);

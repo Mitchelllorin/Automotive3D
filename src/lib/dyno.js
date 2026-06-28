@@ -108,6 +108,16 @@ export function resolveBuild(partVariants = {}, engine = DEFAULT_ENGINE) {
     if (p.lopiness) lopiness = p.lopiness;
   }
 
+  // Compression + induction. For a *custom* engine these are design parameters set
+  // on the package (engine.compression / engine.boostPsi / engine.induction); for a
+  // roster motor they're absent, so compression falls back to the head's spec (which
+  // only feeds F.U.S.E., as before) and there's no boost — leaving every existing
+  // calibration untouched.
+  const crFromHead = parts.cylinder_head?.perf?.cr;
+  const crOverride = engine.compression;
+  const cr = crOverride ?? crFromHead ?? 9.0;
+  const boostPsi = engine.induction && engine.induction !== 'na' ? engine.boostPsi ?? 0 : 0;
+
   return {
     vePeak: clamp(ve, 0.4, cal.veCeiling),
     peakRpm,
@@ -116,6 +126,10 @@ export function resolveBuild(partVariants = {}, engine = DEFAULT_ENGINE) {
     lowWidth,
     highWidth,
     lopiness,
+    cr,
+    crIsOverride: crOverride != null, // only a designed compression moves power
+    boostPsi,
+    induction: engine.induction ?? 'na',
     parts,
   };
 }
@@ -126,6 +140,21 @@ function veShape(rpm, peakRpm, lowWidth, highWidth) {
   const x = (rpm - peakRpm) / w;
   return Math.exp(-0.5 * x * x);
 }
+
+// ── Compression & boost ─────────────────────────────────────────────────────────
+// Raising the compression ratio raises thermal efficiency (the Otto-cycle ideal,
+// 1 − r^(1−γ)), so a higher-compression engine makes more power from the same air —
+// but it also demands more octane (handled by F.U.S.E.). Referenced to 9:1 so a
+// pump-gas street build sits near 1.0×.
+const GAMMA = 1.30;
+const ottoEff = (cr) => 1 - Math.pow(cr, 1 - GAMMA);
+const CR_REF = 9.0;
+const compressionFactor = (cr) => ottoEff(clamp(cr, 6, 16)) / ottoEff(CR_REF);
+
+// Forced induction packs more air mass into each cylinder. The torque multiplier
+// tracks the manifold pressure ratio (boost over atmospheric), derated to ~0.85 for
+// charge heating without an ideal intercooler.
+const boostMult = (psi) => 1 + (Math.max(0, psi) / 14.7) * 0.85;
 
 /** Airflow ceiling: 1.0 until demand approaches the carb/throttle capacity, then noses over. */
 function carbCeiling(rpm, carbCfm, engine) {
@@ -138,11 +167,17 @@ function carbCeiling(rpm, carbCfm, engine) {
 
 /** Instantaneous torque (lb-ft) and VE at an rpm for a resolved build. */
 function torqueAt(rpm, b, engine) {
-  const ve = b.vePeak * veShape(rpm, b.peakRpm, b.lowWidth, b.highWidth) * carbCeiling(rpm, b.carbCfm, engine);
+  // Under boost the turbo/blower — not the carb — owns the airflow ceiling, so the
+  // naturally-aspirated carb choke is lifted and the boost multiplier does the work.
+  const ceiling = b.boostPsi > 0 ? 1 : carbCeiling(rpm, b.carbCfm, engine);
+  const ve = b.vePeak * veShape(rpm, b.peakRpm, b.lowWidth, b.highWidth) * ceiling;
   // Torque from BMEP: T(lb-ft) = BMEP(psi) × displacement(ci) / (75.4 × revs/cycle).
-  // revs/cycle = 2 for a 4-stroke → divisor 150.8.
-  const bmep = engine.dyno.bmepAtVe1 * ve;
-  const tq = (bmep * engine.displacementCI) / 150.8;
+  // revs/cycle = 2 for a 4-stroke → divisor 150.8. A designed compression ratio
+  // scales BMEP; forced induction multiplies it by the pressure ratio.
+  const crFactor = b.crIsOverride ? compressionFactor(b.cr) : 1;
+  const bmep = engine.dyno.bmepAtVe1 * ve * crFactor;
+  let tq = (bmep * engine.displacementCI) / 150.8;
+  if (b.boostPsi > 0) tq *= boostMult(b.boostPsi);
   return { tq, ve };
 }
 

@@ -13,6 +13,7 @@ import { computeDyno, buildCost } from '../../lib/dyno';
 import { buildAdvisories } from '../../lib/engineStress';
 import { commerceEnabled } from '../../data/affiliate';
 import { getEngine, engineList } from '../../data/engines';
+import EngineDesigner from './EngineDesigner';
 
 const ADVISE_ICON = { ok: '✓', info: 'ℹ', warn: '⚠', risk: '⛔' };
 const SHOP = commerceEnabled();
@@ -74,9 +75,14 @@ export default function BuildTab() {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const activeEngineId = useAppStore((s) => s.activeEngineId);
   const setEngine = useAppStore((s) => s.setEngine);
+  const customVersion = useAppStore((s) => s.customVersion);
+  const designerOpen = useAppStore((s) => s.designerOpen);
+  const openDesigner = useAppStore((s) => s.openDesigner);
+  const removeCustomEngine = useAppStore((s) => s.removeCustomEngine);
 
   const engine = getEngine(activeEngineId);
-  const roster = useMemo(() => engineList(), []);
+  // Recompute when a custom motor is added/removed (customVersion bumps).
+  const roster = useMemo(() => engineList(), [customVersion]);
   const PRODUCTS = engine.products;
   const PERF = engine.perfCategories;
 
@@ -110,6 +116,8 @@ export default function BuildTab() {
 
   return (
     <div className="build-tab">
+      {designerOpen && <EngineDesigner />}
+
       {/* Engine roster — pick the motor you're building on */}
       <div className="build-engine">
         <div className="build-engine-head">
@@ -123,7 +131,7 @@ export default function BuildTab() {
             return (
               <button
                 key={e.id}
-                className={`build-engine-tile ${sel ? 'sel' : ''} ${locked ? 'locked' : ''}`}
+                className={`build-engine-tile ${sel ? 'sel' : ''} ${locked ? 'locked' : ''} ${e.custom ? 'custom' : ''}`}
                 disabled={locked}
                 title={locked ? `${e.name} — coming soon` : e.name}
                 onClick={() => !locked && setEngine(e.id)}
@@ -131,10 +139,26 @@ export default function BuildTab() {
                 <span className="build-engine-name">{e.shortName}</span>
                 <span className="build-engine-ci">{Math.round(e.displacementCI)} ci</span>
                 {locked && <span className="build-engine-soon">SOON</span>}
+                {e.custom && <span className="build-engine-custom">CUSTOM</span>}
               </button>
             );
           })}
+          {/* Design your own */}
+          <button
+            className="build-engine-tile design-add"
+            title="Design your own motor"
+            onClick={() => openDesigner()}
+          >
+            <span className="build-engine-name">＋ Design</span>
+            <span className="build-engine-ci">your own</span>
+          </button>
         </div>
+        {engine.custom && (
+          <div className="build-engine-customrow">
+            <button className="build-engine-edit" onClick={() => openDesigner(engine.spec)}>✎ Edit motor</button>
+            <button className="build-engine-remove" onClick={() => removeCustomEngine(engine.id)}>✕ Delete</button>
+          </div>
+        )}
       </div>
 
       {/* Live build summary */}

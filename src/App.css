@@ -2993,3 +2993,247 @@ body {
   transition: color 0.15s, border-color 0.15s, transform 0.1s;
 }
 .help-fab:hover { color: #58a6ff; border-color: #58a6ff; transform: translateY(-1px); }
+
+/* ── Custom motor — roster bits + the Engine Designer ──────────────────────── */
+.build-engine-custom {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #a371f7;
+  border: 1px solid rgba(163, 113, 247, 0.5);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+.build-engine-tile.custom.sel {
+  border-color: #a371f7;
+  background: rgba(163, 113, 247, 0.12);
+  box-shadow: 0 0 0 1px rgba(163, 113, 247, 0.4) inset;
+}
+.build-engine-tile.design-add {
+  border-style: dashed;
+  color: #8b949e;
+  justify-content: center;
+}
+.build-engine-tile.design-add:hover { color: #58a6ff; }
+.build-engine-customrow {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+}
+.build-engine-edit,
+.build-engine-remove {
+  flex: 1;
+  padding: 0.3rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  background: #0d1117;
+  color: #adbac7;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.build-engine-edit:hover { border-color: #a371f7; color: #d2c4fb; }
+.build-engine-remove:hover { border-color: #f85149; color: #f85149; }
+
+/* Designer overlay — slides over the build panel */
+.design-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1.2rem 0.6rem;
+  background: rgba(1, 4, 9, 0.78);
+  backdrop-filter: blur(3px);
+  overflow-y: auto;
+}
+.design-panel {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #161b22, #0d1117);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  padding: 0.75rem 0.8rem 0.85rem;
+}
+.design-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.design-head h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #f0f6fc;
+}
+.design-close {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #30363d;
+  border-radius: 7px;
+  background: #0d1117;
+  color: #8b949e;
+  cursor: pointer;
+}
+.design-close:hover { border-color: #f85149; color: #f85149; }
+
+.design-result {
+  border: 1px solid rgba(163, 113, 247, 0.45);
+  border-radius: 10px;
+  background: rgba(163, 113, 247, 0.07);
+  padding: 0.6rem 0.7rem;
+}
+.design-result-power {
+  display: flex;
+  gap: 1.2rem;
+  align-items: baseline;
+}
+.design-hp, .design-tq { font-size: 0.72rem; color: #8b949e; }
+.design-hp b, .design-tq b {
+  font-size: 1.7rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.design-hp b { color: #f0883e; }
+.design-tq b { color: #3fb950; }
+.design-result-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.7rem;
+  margin-top: 0.3rem;
+  font-size: 0.68rem;
+  color: #adbac7;
+  font-variant-numeric: tabular-nums;
+}
+.design-result-note {
+  margin-top: 0.3rem;
+  font-size: 0.6rem;
+  color: #6e7681;
+  font-style: italic;
+}
+
+.design-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border-top: 1px solid #21262d;
+  padding-top: 0.55rem;
+}
+.design-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #586069;
+  text-transform: uppercase;
+}
+.design-hint {
+  font-size: 0.6rem;
+  color: #6e7681;
+}
+.design-platforms {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.design-platform {
+  flex: 1 1 auto;
+  min-width: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #0d1117;
+  color: #c9d1d9;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.design-platform:hover { border-color: #58a6ff; }
+.design-platform.sel {
+  border-color: #a371f7;
+  background: rgba(163, 113, 247, 0.12);
+}
+.design-platform-name { font-size: 0.78rem; font-weight: 800; }
+.design-platform-arch { font-size: 0.58rem; color: #8b949e; }
+
+.design-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.design-slider-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #adbac7;
+}
+.design-slider-top b {
+  color: #f0f6fc;
+  font-variant-numeric: tabular-nums;
+}
+.design-slider input[type="range"] { width: 100%; accent-color: #a371f7; }
+
+.design-induction {
+  display: flex;
+  gap: 0.4rem;
+}
+.design-ind {
+  flex: 1;
+  padding: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #0d1117;
+  color: #adbac7;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.design-ind:hover { border-color: #58a6ff; }
+.design-ind.sel {
+  border-color: #a371f7;
+  background: rgba(163, 113, 247, 0.14);
+  color: #f0f6fc;
+}
+
+.design-fuse .build-advise { font-size: 0.68rem; }
+
+.design-save {
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: center;
+}
+.design-name {
+  flex: 1;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #0d1117;
+  color: #f0f6fc;
+  font-size: 0.78rem;
+}
+.design-name:focus { outline: none; border-color: #a371f7; }
+.design-save-btn {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #a371f7, #8957e5);
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.design-save-btn:hover { filter: brightness(1.08); }
+.design-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }

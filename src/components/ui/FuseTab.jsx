@@ -103,7 +103,7 @@ export default function FuseTab() {
       <div className="fuse-vitals">
         <span><b>{rpm.toLocaleString()}</b> rpm</span>
         <span className={rpm > state.redline ? 'over' : ''}>redline <b>{state.redline.toLocaleString()}</b></span>
-        <span>{state.compressionRatio.toFixed(1)}:1</span>
+        <span>{(state.mechanicalCR ?? state.compressionRatio).toFixed(1)}:1{state.boostPsi > 0 ? ` · ${Math.round(state.boostPsi)} psi` : ''}</span>
       </div>
 
       {/* Temperatures */}

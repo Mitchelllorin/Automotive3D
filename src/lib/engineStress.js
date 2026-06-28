@@ -41,7 +41,13 @@ export const FUELS = [
  */
 export function operatingState(partVariants, conditions = DEFAULT_CONDITIONS, engine = DEFAULT_ENGINE) {
   const b = resolveBuild(partVariants, engine);
-  const cr = b.parts.cylinder_head?.perf?.cr ?? 9.0;
+  // The mechanical compression ratio (for display) — a custom engine's designed CR,
+  // else the head's spec. Boost raises the *effective* in-cylinder pressure the charge
+  // sees, so it demands octane like extra compression: ~0.2 CR-points per psi (so a
+  // mild 7 psi build wants premium, while big boost climbs into race-gas territory).
+  const cr = b.cr ?? 9.0;
+  const boostPsi = b.boostPsi ?? 0;
+  const knockCR = cr + boostPsi * 0.2;
   const cool = coolingCapacity(partVariants, engine);
   // The block sets how much over-rev the bottom end survives before a rod lets go.
   const block = pick(engine, 'engine_block', partVariants.engine_block);
@@ -57,11 +63,15 @@ export function operatingState(partVariants, conditions = DEFAULT_CONDITIONS, en
   const iatF = conditions.ambientF + 18 + load * 16;
   // Knock (octane below what the charge demands) drives EGT up.
   const knockMargin =
-    conditions.octane - requiredOctane({ compressionRatio: cr, loadFraction: load, ambientF: conditions.ambientF });
-  const egtF = 1000 + load * 430 + (knockMargin < 0 ? Math.min(180, -knockMargin * 18) : 0);
+    conditions.octane - requiredOctane({ compressionRatio: knockCR, loadFraction: load, ambientF: conditions.ambientF });
+  const egtF = 1000 + load * 430 + boostPsi * 9 + (knockMargin < 0 ? Math.min(180, -knockMargin * 18) : 0);
   return {
     redline: b.redline,
-    compressionRatio: cr,
+    // What F.U.S.E.'s detonation model keys off (boost-inflated); the mechanical CR
+    // and boost are carried alongside for display.
+    compressionRatio: knockCR,
+    mechanicalCR: cr,
+    boostPsi,
     coolingCapacity: cool,
     blockStrength,
     coolantF,
@@ -94,15 +104,19 @@ export function fuseComponents(state) {
  */
 export function buildAdvisories(partVariants, engine = DEFAULT_ENGINE) {
   const s = operatingState(partVariants, { ambientF: 95, altitudeFt: 0, octane: 91, loadFraction: 1 }, engine);
-  const cr = s.compressionRatio;
   const out = [];
 
-  // Fuel / detonation — what octane the compression demands at WOT.
-  const req = Math.round(requiredOctane({ compressionRatio: cr, loadFraction: 1, ambientF: 90 }));
-  if (req <= 88) out.push({ level: 'ok', text: `Happy on 87 regular (${cr.toFixed(1)}:1 compression).` });
-  else if (req <= 92) out.push({ level: 'warn', text: `Wants 91 premium — ${cr.toFixed(1)}:1 will ping on regular.` });
-  else if (req <= 96) out.push({ level: 'warn', text: `Needs 93 premium (${cr.toFixed(1)}:1) — right at the pump-gas limit.` });
-  else out.push({ level: 'risk', text: `Race gas only (~${req} octane). This compression detonates on pump gas.` });
+  // Fuel / detonation — what octane the charge demands at WOT. The requirement keys
+  // off the effective (boost-inflated) compression; the label shows the real CR, plus
+  // the boost when forced, so a boosted combo reads honestly.
+  const req = Math.round(requiredOctane({ compressionRatio: s.compressionRatio, loadFraction: 1, ambientF: 90 }));
+  const crTxt = s.boostPsi > 0
+    ? `${(s.mechanicalCR ?? s.compressionRatio).toFixed(1)}:1 + ${Math.round(s.boostPsi)} psi`
+    : `${(s.mechanicalCR ?? s.compressionRatio).toFixed(1)}:1 compression`;
+  if (req <= 88) out.push({ level: 'ok', text: `Happy on 87 regular (${crTxt}).` });
+  else if (req <= 92) out.push({ level: 'warn', text: `Wants 91 premium — ${crTxt} will ping on regular.` });
+  else if (req <= 96) out.push({ level: 'warn', text: `Needs 93 premium (${crTxt}) — right at the pump-gas limit.` });
+  else out.push({ level: 'risk', text: `Race gas only (~${req} octane). ${crTxt} detonates on pump gas.` });
 
   // Bottom end — the rpm a thrown rod becomes likely, set by the block.
   const rodLimit = Math.round(s.redline * 1.22 * s.blockStrength);
