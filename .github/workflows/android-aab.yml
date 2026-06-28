@@ -1,0 +1,64 @@
+name: Android AAB
+
+# Builds a signed Play-ready .aab in the cloud. Run from the Actions tab
+# ("Run workflow") or on a version tag. Download the bundle from the run's
+# Artifacts. Requires these repo secrets (Settings → Secrets → Actions):
+#   ANDROID_KEYSTORE_BASE64  — base64 of android/upload-keystore.jks
+#   ANDROID_KEYSTORE_PASSWORD
+#   ANDROID_KEY_ALIAS        — e.g. "upload"
+#   ANDROID_KEY_PASSWORD
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install web deps + build the bundle
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Decode keystore + write signing config
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KS_B64" | base64 -d > android/upload-keystore.jks
+          cat > android/keystore.properties <<EOF
+          storeFile=upload-keystore.jks
+          keyAlias=$KEY_ALIAS
+          storePassword=$KS_PASS
+          keyPassword=$KEY_PASS
+          EOF
+
+      - name: Build signed AAB
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: automotive3d-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
