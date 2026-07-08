@@ -1,25 +1,35 @@
 /**
  * promo.cjs — cinematic "director" that drives Automotive3D like a user and
- * captures a frame sequence, then encodes a sped-up timelapse MP4.
+ * captures a frame sequence, then encodes editor-ready deliverables.
  *
- * Scenes: hero orbit (blown 383) → start + dyno → throttle pull → Build tab →
- * Engine Designer → teardown (explode) → Arena duel → winner pullback.
+ * Outputs (all in promo/):
+ *   frames/            — raw PNG sequence (lossless source)
+ *   clips/             — per-scene ProRes 4444 clips (Premiere / DaVinci / FCP)
+ *   automotive3d_master.mov  — full ProRes 4444 master (drag into any NLE)
+ *   automotive3d_preview.mp4 — H.264 web preview (quick review / YouTube)
+ *   manifest.json      — scene names, frame ranges, clip file paths
+ *
+ * Scenes: hero orbit (blown 383) → start + dyno → throttle pull → X-ray →
+ *         Build tab → Engine Designer → teardown (explode) → Arena duel → outro.
  */
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const puppeteer = require('puppeteer');
-// Encoder: prefer ffmpeg-static (devDependency), fall back to FFMPEG_PATH or PATH.
+
 let ffmpeg = process.env.FFMPEG_PATH || 'ffmpeg';
 try { ffmpeg = require('ffmpeg-static') || ffmpeg; } catch { /* use PATH ffmpeg */ }
 
-const SP = path.join(__dirname, 'promo');       // output dir (gitignored)
+const SP     = path.join(__dirname, 'promo');
 const FRAMES = path.join(SP, 'frames');
-fs.mkdirSync(SP, { recursive: true });
-const URL = 'http://localhost:5173/';
-const VW = 1280, VH = 720, DSF = 1.25; // 16:9, captured at 1600x900
+const CLIPS  = path.join(SP, 'clips');
+fs.mkdirSync(SP,     { recursive: true });
+fs.mkdirSync(CLIPS,  { recursive: true });
 
-// Hero motor: a blown small-block stroker so the new supercharger geometry is the star.
+const URL = 'http://localhost:5173/';
+const VW = 1280, VH = 720, DSF = 1.25; // captured at 1600×900
+const FPS = 24; // target playback fps for all outputs
+
 const HERO = {
   id: 'custom:promo-blown', name: 'Blown 383', baseEngineId: 'sbc383',
   compression: 8.8, induction: 'super', boostPsi: 14,
@@ -30,32 +40,38 @@ const HERO = {
   fs.mkdirSync(FRAMES, { recursive: true });
   let frame = 0;
 
-  // Real-GPU headless (Intel D3D11) — ~30x faster than swiftshader, affords the AO.
+  // Scene boundary tracking — each log() call closes the previous scene and opens a new one.
+  const scenes = [];
+  let currentScene = null;
+  function beginScene(name) {
+    if (currentScene) currentScene.end = frame;
+    currentScene = { name, start: frame + 1, end: null };
+    scenes.push(currentScene);
+    console.log(`[promo] frame ${frame} — ${name}`);
+  }
+  function closeScenes() { if (currentScene) currentScene.end = frame; }
+
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--use-angle=d3d11', '--enable-gpu', '--enable-webgl',
-      '--ignore-gpu-blocklist', '--no-sandbox', `--window-size=${VW},${VH}`],
+           '--ignore-gpu-blocklist', '--no-sandbox', `--window-size=${VW},${VH}`],
   });
   const page = await browser.newPage();
   await page.setViewport({ width: VW, height: VH, deviceScaleFactor: DSF });
 
-  // Bug sweep: driving the app like a user is also QA. Collect every console
-  // error/warning, uncaught exception, and failed request during the run, tagged
-  // with the scene that was on screen, then print a report at the end.
   const bugs = { console: [], exceptions: [], requests: [] };
-  let scene = 'load';
-  page.on('console', (m) => { const t = m.type(); if (t === 'error' || t === 'warning') bugs.console.push(`[${scene}] (${t}) ${m.text()}`); });
-  page.on('pageerror', (e) => bugs.exceptions.push(`[${scene}] ${e.message}`));
-  page.on('requestfailed', (r) => { const u = r.url(); if (!u.startsWith('data:')) bugs.requests.push(`[${scene}] ${r.failure()?.errorText || 'failed'} ${u}`); });
+  page.on('console',      (m) => { const t = m.type(); if (t === 'error' || t === 'warning') bugs.console.push(`[${currentScene?.name}] (${t}) ${m.text()}`); });
+  page.on('pageerror',    (e) => bugs.exceptions.push(`[${currentScene?.name}] ${e.message}`));
+  page.on('requestfailed',(r) => { const u = r.url(); if (!u.startsWith('data:')) bugs.requests.push(`[${currentScene?.name}] ${r.failure()?.errorText || 'failed'} ${u}`); });
+
   await page.evaluateOnNewDocument((h) => {
-    localStorage.setItem('a3d:customEngines', JSON.stringify([h]));
-    localStorage.setItem('a3d:engineId', h.id);           // store reads this RAW
+    localStorage.setItem('a3d:customEngines',    JSON.stringify([h]));
+    localStorage.setItem('a3d:engineId',          h.id);
     localStorage.setItem('a3d:sidebarCollapsed', 'true');
-    localStorage.setItem('a3d:tutorialSeen', '1');
+    localStorage.setItem('a3d:tutorialSeen',     '1');
   }, HERO);
   await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await wait(7500);
-  // Dismiss the tour if it opened anyway.
   await clickText('Skip');
   await wait(600);
 
@@ -88,15 +104,6 @@ const HERO = {
       set.call(el, v); el.dispatchEvent(new Event('change', { bubbles: true })); return true;
     }, [s, v]);
   }
-
-  // Continuous damped orbit: hold a drag and ping-pong, screenshotting each step.
-  // The anchor sits in the empty lower-LEFT of the canvas (the engine sits centre-
-  // right), so a stray click hits background, never a part — which avoids selecting
-  // a component and triggering the X-ray focus-fade that washes the engine out.
-  // ax/ay = drag anchor. Default = empty lower-left (so a stray click selects
-  // nothing → solid engine). Pass an on-engine anchor for the X-RAY scene, where
-  // a part is deliberately selected and dragging on it preserves that selection
-  // (a drag never fires onPointerMissed, which would clear it back to solid).
   async function orbitCapture(n, dx = 7, dy = 0, wheel = 0, ax = 230, ay = 600) {
     await page.mouse.move(ax, ay); await page.mouse.down();
     let x = ax, y = ay, vx = dx;
@@ -110,75 +117,73 @@ const HERO = {
     }
     await page.mouse.up();
   }
-  // Hold on a still-ish camera while the scene animates.
   async function holdCapture(n) { for (let i = 0; i < n; i++) { await wait(120); await shot(); } }
 
-  const log = (m) => { scene = m; console.log(`[promo] frame ${frame} — ${m}`); };
-
+  // ── scenes ───────────────────────────────────────────────────────────────
   try {
-    // 1 — HERO: establish the blown motor with a slow orbit.
-    log('hero orbit'); await orbitCapture(26, 8, 0);
-    await orbitCapture(10, 4, 0, -90); // ease in
+    beginScene('01_hero_orbit');
+    await orbitCapture(26, 8, 0);
+    await orbitCapture(10, 4, 0, -90);
 
-    // 2 — START + DYNO: open the dyno panel, fire it up.
-    log('start + dyno'); await clickSel('.engine-expand-chip'); await wait(500);
-    await clickSel('.engine-power'); await wait(600); // START
+    beginScene('02_start_dyno');
+    await clickSel('.engine-expand-chip'); await wait(500);
+    await clickSel('.engine-power'); await wait(600);
     await holdCapture(8);
     await orbitCapture(18, -6, 0);
 
-    // 3 — THROTTLE pull: rev it; combustion flashes fire in order.
-    log('throttle'); await setRange('.engine-slider-row input[type=range]', 5200); await wait(400);
-    await orbitCapture(14, 6, 0, -70); // orbit + zoom in (solid, running)
+    beginScene('03_throttle');
+    await setRange('.engine-slider-row input[type=range]', 5200); await wait(400);
+    await orbitCapture(14, 6, 0, -70);
     await holdCapture(5);
 
-    // 4 — X-RAY: select a part so the engine turns translucent, orbit to reveal the
-    // internals running inside, then a cutaway slice — the see-through showpiece.
-    log('x-ray'); await setRange('.engine-slider-row input[type=range]', 1300); await wait(300); // calm idle
-    await page.mouse.click(900, 415); await wait(500);   // select a part → focus x-ray fade
-    await orbitCapture(16, 6, 0, 0, 900, 415);           // translucent orbit (anchored ON the engine)
-    await clickText('Cutaway'); await wait(700);         // cross-section slice
-    await orbitCapture(12, -6, 0, 0, 900, 415);          // internals running in the cut
-    await clickText('Cutaway'); await wait(400);         // restore
-    await page.mouse.click(170, 600); await wait(300);   // empty click → onPointerMissed → solid again
-    await clickSel('.engine-power'); await wait(400);    // STOP — clean for build/teardown
+    beginScene('04_xray');
+    await setRange('.engine-slider-row input[type=range]', 1300); await wait(300);
+    await page.mouse.click(900, 415); await wait(500);
+    await orbitCapture(16, 6, 0, 0, 900, 415);
+    await clickText('Cutaway'); await wait(700);
+    await orbitCapture(12, -6, 0, 0, 900, 415);
+    await clickText('Cutaway'); await wait(400);
+    await page.mouse.click(170, 600); await wait(300);
+    await clickSel('.engine-power'); await wait(400);
 
-    // 5 — BUILD tab: reveal the roster + custom tiles + live dyno.
-    log('build tab'); await clickSel('.engine-collapse-btn'); await wait(300); // hide dyno panel
+    beginScene('05_build_tab');
+    await clickSel('.engine-collapse-btn'); await wait(300);
     await clickSel('.sidebar-expand-btn'); await wait(700);
     await holdCapture(10);
 
-    // 5 — DESIGNER: open "Design your own", show sliders + induction.
-    log('designer'); await clickSel('.design-add'); await wait(800);
+    beginScene('06_designer');
+    await clickSel('.design-add'); await wait(800);
     await holdCapture(6);
-    await clickSel('.design-ind'); await wait(300); // touch an induction chip
+    await clickSel('.design-ind'); await wait(300);
     await holdCapture(6);
     await clickSel('.design-close'); await wait(400);
-    await clickSel('[aria-label="Collapse panel"]'); await wait(500); // close sidebar
+    await clickSel('[aria-label="Collapse panel"]'); await wait(500);
 
-    // 6 — TEARDOWN: the showpiece exploded view, driven open while orbiting.
-    log('teardown');
+    beginScene('07_teardown');
     for (let i = 0; i <= 14; i++) { await setRange('.explode-slider', (i / 14).toFixed(2)); await page.mouse.move(720 + i * 12, 470); await wait(60); await shot(); }
-    await orbitCapture(20, 9, 0); // orbit the exploded engine
-    for (let i = 14; i >= 0; i--) { await setRange('.explode-slider', (i / 14).toFixed(2)); await wait(50); await shot(); } // reassemble
+    await orbitCapture(20, 9, 0);
+    for (let i = 14; i >= 0; i--) { await setRange('.explode-slider', (i / 14).toFixed(2)); await wait(50); await shot(); }
 
-    // 7 — ARENA: stage a duel vs a stock motor, launch the battle.
-    log('arena'); await clickSel('[data-tour="arena-enter"]'); await wait(1200);
+    beginScene('08_arena');
+    await clickSel('[data-tour="arena-enter"]'); await wait(1200);
     await holdCapture(6);
     await setSelect('.arena3d-vs select', 'sbc350'); await wait(400);
-    await clickSel('.arena3d-go'); await wait(600); // BATTLE
-    await orbitCapture(26, 5, 0); // capture the duel + heat ring
-    await holdCapture(10); // winner resolves
+    await clickSel('.arena3d-go'); await wait(600);
+    await orbitCapture(26, 5, 0);
+    await holdCapture(10);
 
-    // 8 — OUTRO: pull back off the winner.
-    log('outro'); await orbitCapture(18, -7, 0, 70);
+    beginScene('09_outro');
+    await orbitCapture(18, -7, 0, 70);
+
   } catch (e) {
     console.error('[promo] scene error:', e.message);
   }
 
-  console.log(`[promo] captured ${frame} frames`);
+  closeScenes();
+  console.log(`[promo] captured ${frame} frames across ${scenes.length} scenes`);
   await browser.close();
 
-  // ── bug report (the QA half of the workflow) ──────────────────────────────
+  // ── bug report ────────────────────────────────────────────────────────────
   const uniq = (a) => [...new Set(a)];
   const ce = uniq(bugs.console), pe = uniq(bugs.exceptions), rf = uniq(bugs.requests);
   console.log('\n===== BUG SWEEP =====');
@@ -189,12 +194,99 @@ const HERO = {
   if (!pe.length && !ce.length && !rf.length) console.log('clean — no errors observed.');
   console.log('=====================\n');
 
-  // ── encode ───────────────────────────────────────────────────────────────
-  const out = path.join(SP, 'automotive3d_promo.mp4');
-  const args = ['-y', '-framerate', '20', '-i', path.join(FRAMES, 'f_%04d.png'),
-    '-c:v', 'libx264', '-crf', '20', '-preset', 'medium', '-pix_fmt', 'yuv420p',
-    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2', out];
-  const r = spawnSync(ffmpeg, args, { encoding: 'utf8' });
-  if (r.status !== 0) { console.error('FFMPEG FAILED:', (r.stderr || '').slice(-800)); process.exit(1); }
-  console.log('WROTE', out);
+  // ── encode helpers ────────────────────────────────────────────────────────
+  function enc(args, label) {
+    console.log(`[encode] ${label}`);
+    const r = spawnSync(ffmpeg, args, { encoding: 'utf8' });
+    if (r.status !== 0) { console.error(`FFMPEG FAILED (${label}):`, (r.stderr || '').slice(-600)); }
+    else { console.log(`[encode] done → ${args[args.length - 1]}`); }
+    return r.status === 0;
+  }
+
+  // Slice a range of frames from the FRAMES dir into a temp dir, encode, clean up.
+  function encScene(scene) {
+    const { name, start, end } = scene;
+    const count = end - start + 1;
+    if (count < 2) return null;
+
+    // Build a concat list so we don't need to rename frames.
+    const concatFile = path.join(SP, `_concat_${name}.txt`);
+    const lines = [];
+    for (let f = start; f <= end; f++) {
+      lines.push(`file '${path.join(FRAMES, `f_${String(f).padStart(4, '0')}.png`).replace(/\\/g, '/')}'`);
+      lines.push(`duration ${(1 / FPS).toFixed(6)}`);
+    }
+    fs.writeFileSync(concatFile, lines.join('\n'));
+
+    const out = path.join(CLIPS, `${name}.mov`);
+    const ok = enc([
+      '-y', '-f', 'concat', '-safe', '0', '-i', concatFile,
+      '-c:v', 'prores_ks', '-profile:v', '4444', '-qscale:v', '1',
+      '-pix_fmt', 'yuva444p10le',
+      '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+      out,
+    ], `${name} ProRes`);
+    fs.rmSync(concatFile);
+    return ok ? out : null;
+  }
+
+  // ── per-scene ProRes clips ────────────────────────────────────────────────
+  console.log('\n[encode] cutting per-scene ProRes clips...');
+  const clipPaths = {};
+  for (const s of scenes) {
+    const p = encScene(s);
+    if (p) clipPaths[s.name] = p;
+  }
+
+  // ── full ProRes master ────────────────────────────────────────────────────
+  const master = path.join(SP, 'automotive3d_master.mov');
+  enc([
+    '-y', '-framerate', String(FPS), '-i', path.join(FRAMES, 'f_%04d.png'),
+    '-c:v', 'prores_ks', '-profile:v', '4444', '-qscale:v', '1',
+    '-pix_fmt', 'yuva444p10le',
+    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+    master,
+  ], 'full ProRes master');
+
+  // ── H.264 web preview ─────────────────────────────────────────────────────
+  const preview = path.join(SP, 'automotive3d_preview.mp4');
+  enc([
+    '-y', '-framerate', String(FPS), '-i', path.join(FRAMES, 'f_%04d.png'),
+    '-c:v', 'libx264', '-crf', '16', '-preset', 'slow',
+    '-pix_fmt', 'yuv420p',
+    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+    preview,
+  ], 'H.264 preview');
+
+  // ── manifest ──────────────────────────────────────────────────────────────
+  const manifest = {
+    fps: FPS,
+    totalFrames: frame,
+    captureResolution: `${VW * DSF}x${VH * DSF}`,
+    files: {
+      master: path.relative(__dirname, master),
+      preview: path.relative(__dirname, preview),
+    },
+    scenes: scenes.map((s) => ({
+      name: s.name,
+      startFrame: s.start,
+      endFrame: s.end,
+      frameCount: s.end - s.start + 1,
+      durationSec: +((s.end - s.start + 1) / FPS).toFixed(2),
+      clip: clipPaths[s.name] ? path.relative(__dirname, clipPaths[s.name]) : null,
+    })),
+  };
+  const manifestPath = path.join(SP, 'manifest.json');
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  console.log('\n[promo] manifest →', manifestPath);
+
+  // ── summary ───────────────────────────────────────────────────────────────
+  console.log('\n===== DELIVERABLES =====');
+  console.log(`  Master (ProRes 4444) : ${master}`);
+  console.log(`  Preview (H.264)      : ${preview}`);
+  console.log(`  Scene clips          : ${CLIPS}`);
+  console.log(`  Raw frames           : ${FRAMES}`);
+  console.log(`  Manifest             : ${manifestPath}`);
+  console.log('========================\n');
+
 })().catch((e) => { console.error('PROMO ERROR', e.stack || e.message); process.exit(1); });
