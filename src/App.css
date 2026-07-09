@@ -1018,7 +1018,7 @@ body {
 .engine-control {
   position: absolute;
   top: 3.4rem; /* clears the floating logo above it */
-  left: 0.75rem;
+  left: 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1028,7 +1028,7 @@ body {
   padding: 0.6rem 0.75rem;
   backdrop-filter: blur(6px);
   z-index: 6;
-  width: 240px;
+  width: 288px;
   /* The panel carries a lot (controls + dyno + 6 metrics) — cap it to the visible
      height and scroll inside so it never collides with the header or anything else
      when zoomed in or on a short viewport. Scrollbar hidden — the content just
@@ -1087,7 +1087,7 @@ body {
 .engine-expand-chip {
   position: absolute;
   top: 3.4rem; /* same anchor the panel uses, clears the header/logo */
-  left: 0.75rem;
+  left: 1.25rem;
   z-index: 6;
   cursor: pointer;
   display: flex;
@@ -1157,8 +1157,9 @@ body {
 }
 
 .engine-slider-row > span:first-child {
-  width: 4.2rem;
+  width: 4.6rem;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .engine-slider-row input[type='range'] {
@@ -3018,6 +3019,87 @@ body {
   transition: color 0.15s, border-color 0.15s, transform 0.1s;
 }
 .help-fab:hover { color: #58a6ff; border-color: #58a6ff; transform: translateY(-1px); }
+
+/* Settings gear FAB — bottom-right, stacked just above the "?" help button so it's
+   clear of the top-right Reset/Arena cluster. The standard white cog. */
+.settings-fab {
+  position: absolute;
+  bottom: 3.35rem;
+  right: 0.85rem;
+  z-index: 30;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid #30363d;
+  background: rgba(22, 27, 34, 0.92);
+  color: #e6edf3;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+  transition: color 0.15s, border-color 0.15s, transform 0.2s;
+}
+.settings-fab:hover { color: #58a6ff; border-color: #58a6ff; }
+.settings-fab:hover svg { transform: rotate(45deg); }
+.settings-fab svg { transition: transform 0.3s ease; }
+
+/* Settings modal — the single home for all app settings, opened by the gear. */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: settings-fade 0.15s ease;
+}
+@keyframes settings-fade { from { opacity: 0; } to { opacity: 1; } }
+.settings-modal {
+  width: 380px;
+  max-width: calc(100vw - 28px);
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(22, 27, 34, 0.96);
+  border: 1px solid rgba(99, 110, 123, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: tour-pop 0.18s ease;
+}
+.settings-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid rgba(99, 110, 123, 0.28);
+}
+.settings-modal-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.settings-modal-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #30363d;
+  background: rgba(13, 17, 23, 0.6);
+  color: #adbac7;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: color 0.15s, border-color 0.15s;
+}
+.settings-modal-close:hover { color: #f85149; border-color: #f85149; }
+.settings-modal-body {
+  padding: 0.5rem 0.9rem 0.9rem;
+  overflow-y: auto;
+}
 
 /* ── Custom motor — roster bits + the Engine Designer ──────────────────────── */
 .build-engine-custom {

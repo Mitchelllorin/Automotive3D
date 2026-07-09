@@ -7,6 +7,7 @@ import Sidebar from './components/ui/Sidebar';
 import SidebarResizeHandle from './components/ui/SidebarResizeHandle';
 import ErrorBoundary from './components/ErrorBoundary';
 import Tour from './components/ui/Tour';
+import SettingsModal, { SettingsGear } from './components/ui/SettingsModal';
 import useAppStore from './store/appStore';
 import './App.css';
 
@@ -51,11 +52,13 @@ function App() {
           >
             ?
           </button>
+          <SettingsGear />
         </div>
         {!sidebarCollapsed && <SidebarResizeHandle />}
         <Sidebar />
       </div>
       <Tour />
+      <SettingsModal />
     </div>
     </ErrorBoundary>
   );

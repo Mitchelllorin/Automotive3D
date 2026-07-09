@@ -537,7 +537,7 @@ export default function VehicleScene() {
         {/* Brand logos, in-canvas so they composite with no black box: the header
             mark (top-left, steady) + the floating workspace clone (top-right). */}
         <Suspense fallback={null}>
-          <SceneLogo anchor={[-0.66, 0.86]} scale={0.115} drift={false} useFx={false} />
+          <SceneLogo anchor={[-1.02, 0.8]} scale={0.115} drift={false} useFx={false} />
           <SceneLogo anchor={[0.46, 0.46]} scale={0.14} drift useFx />
         </Suspense>
 

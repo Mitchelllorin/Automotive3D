@@ -85,13 +85,19 @@ export default function SceneLogo({ anchor = [0.55, 0.66], scale = 0.16, drift =
       rod.current.position.y = Math.sin(t * 0.95 * speed + 0.6) * 0.5 * bounce;
       rod.current.rotation.y = Math.sin(t * 0.5 * speed) * 0.4;
     } else {
-      // Header mark: planted, gently swaying on an invisible vertical center rod —
-      // it turns to show its 3D depth then eases back, never spinning all the way
-      // around (so the text never faces backwards). layout.position.x = -width/2 puts
-      // that rod through the logo's center, so it pivots in place.
+      // Header mark: AIM it at the camera's optical centre first. The scene runs a
+      // wide 42° perspective lens, so an extruded logo parked in a corner is viewed
+      // at a steep oblique angle and looks skewed/keystoned. Rotating the anchor to
+      // face the camera origin cancels that obliquity, so the logo reads flat and
+      // square (level) no matter how far into the corner it sits.
+      const px = halfW * anchor[0];
+      const py = halfH * anchor[1];
+      anchorRef.current.rotation.set(Math.atan2(py, DIST), -Math.atan2(px, DIST), 0);
+      // Then a gentle side-to-side rock on its centre rod shows the 3D depth without
+      // ever swinging far enough to look crooked at rest.
       rod.current.position.set(0, 0, 0);
       rod.current.rotation.x = 0;
-      rod.current.rotation.y = Math.sin(t * 0.5) * 0.55; // ±~32° gentle sway
+      rod.current.rotation.y = Math.sin(t * 0.42) * 0.2; // ±~11° gentle rock
     }
 
     // Ease opacity toward the target, then push it onto every glyph material —

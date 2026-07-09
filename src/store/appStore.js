@@ -190,13 +190,15 @@ const useAppStore = create((set) => ({
 
   // ── 3D logo FX — floating logo controls (matches the sibling apps), persisted ──
   logoFx: (() => {
-    // The floating workspace logo defaults to nearly transparent — a subtle ghosted
-    // watermark, not a label competing with the engine. (The header mark is opaque;
-    // it passes useFx={false}.) Adjustable in Settings; raise opacity to make it pop.
-    const def = { opacity: 0.12, speed: 1, bounce: 0.5 };
+    // The floating workspace logo defaults to ALMOST invisible — a barely-there
+    // ghosted watermark, not a label competing with the engine. (The header mark is
+    // opaque; it passes useFx={false}.) Adjustable in Settings; raise opacity to pop.
+    const def = { opacity: 0.03, speed: 1, bounce: 0.5 };
     if (typeof window === 'undefined') return def;
     try {
-      return { ...def, ...(JSON.parse(window.localStorage.getItem('a3d:logoFx')) || {}) };
+      // Versioned key: bumping it retires the old default (0.12) so the new
+      // near-invisible default reaches browsers that cached the previous value.
+      return { ...def, ...(JSON.parse(window.localStorage.getItem('a3d:logoFx:v2')) || {}) };
     } catch {
       return def;
     }
@@ -204,11 +206,16 @@ const useAppStore = create((set) => ({
   setLogoFx: (partial) =>
     set((s) => {
       const logoFx = { ...s.logoFx, ...partial };
-      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:logoFx', JSON.stringify(logoFx));
+      if (typeof window !== 'undefined') window.localStorage.setItem('a3d:logoFx:v2', JSON.stringify(logoFx));
       return { logoFx };
     }),
   logoSettingsOpen: false,
   toggleLogoSettings: () => set((s) => ({ logoSettingsOpen: !s.logoSettingsOpen })),
+
+  // ── Settings panel — opened by the gear FAB; home for all app settings ───────
+  settingsOpen: false,
+  setSettingsOpen: (open) => set({ settingsOpen: open }),
+  toggleSettings: () => set((s) => ({ settingsOpen: !s.settingsOpen })),
 
   // ── Ghost preview — try a part on the engine before committing it ────────────
   // While set, the 3D engine + build numbers show this part as a translucent

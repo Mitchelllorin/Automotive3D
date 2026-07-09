@@ -9,7 +9,6 @@ import FuseTab from './FuseTab';
 import InfoTab from './InfoTab';
 import ArenaTab from './ArenaTab';
 import BuildTab from './BuildTab';
-import SettingsTab from './SettingsTab';
 import ComponentDetail from './ComponentDetail';
 import ErrorBoundary from '../ErrorBoundary';
 
@@ -20,7 +19,6 @@ const TABS = [
   { id: 'parts', label: '🔩 Parts' },
   { id: 'systems', label: '⚙ Systems' },
   { id: 'info', label: 'ℹ Info' },
-  { id: 'settings', label: '⚙ Settings' },
 ];
 
 export default function Sidebar() {
@@ -69,7 +67,6 @@ export default function Sidebar() {
           {activeTab === 'arena' && <ArenaTab />}
           {activeTab === 'faults' && <FuseTab />}
           {activeTab === 'info' && <InfoTab />}
-          {activeTab === 'settings' && <SettingsTab />}
         </ErrorBoundary>
       </div>
 
