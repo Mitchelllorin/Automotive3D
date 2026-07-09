@@ -27,22 +27,29 @@
 
 param(
     [string]$AppPath = '',
+    # Dedicated port so this app never collides with sibling dev servers (ThePrints3D,
+    # CircuiTry3D, etc.) that squat on the shared Vite default 5173. strictPort holds it.
+    [int]$Port = 5180,
     [string]$Ua = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36'
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $leaf = Split-Path $projectRoot -Leaf
 
-Write-Host '==> Clearing stray node processes...'
-Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+# Only clear whatever is holding OUR port — never blanket-kill node, or we'd take down
+# the user's sibling project dev servers running alongside this one.
+Write-Host "==> Freeing port $Port (leaving other dev servers alone)..."
+$owners = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique
+foreach ($procId in $owners) { try { Stop-Process -Id $procId -Force -ErrorAction Stop } catch {} }
 
 $log    = Join-Path $env:TEMP "vite-$leaf.out.log"
 $errLog = Join-Path $env:TEMP "vite-$leaf.err.log"
 Remove-Item $log, $errLog -Force -ErrorAction SilentlyContinue
 
-Write-Host '==> Starting Vite dev server (npm run dev -- --host)...'
+Write-Host "==> Starting Vite dev server (npm run dev -- --host --port $Port --strictPort)..."
 Push-Location $projectRoot
-Start-Process -FilePath 'npm.cmd' -ArgumentList 'run','dev','--','--host' `
+Start-Process -FilePath 'npm.cmd' -ArgumentList 'run','dev','--','--host','--port',"$Port",'--strictPort' `
     -WindowStyle Hidden -RedirectStandardOutput $log -RedirectStandardError $errLog
 Pop-Location
 
