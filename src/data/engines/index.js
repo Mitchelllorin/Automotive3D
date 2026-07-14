@@ -11,6 +11,8 @@ import { smallBlockV8 } from './smallBlockV8';
 import { sbc383 } from './sbc383';
 import { sbc400 } from './sbc400';
 import { inline4 } from './inline4';
+import { bbc454 } from './bbc454';
+import { ls53 } from './ls53';
 import { COMING_SOON } from './comingSoon';
 // Side-effect imports: part packs that register themselves into the catalog.
 // (Imported here because the engine registry is on every consumer's import path,
@@ -22,6 +24,8 @@ export const ENGINES = {
   [sbc383.id]: sbc383,
   [sbc400.id]: sbc400,
   [inline4.id]: inline4,
+  [bbc454.id]: bbc454,
+  [ls53.id]: ls53,
   ...Object.fromEntries(COMING_SOON.map((e) => [e.id, e])),
 };
 

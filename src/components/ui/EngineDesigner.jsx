@@ -29,6 +29,12 @@ const INDUCTIONS = [
   { id: 'turbo', label: 'Turbo', long: 'Turbocharged' },
   { id: 'super', label: 'Blower', long: 'Supercharged' },
 ];
+const ARCHITECTURES = [
+  { id: 'ohv', label: 'OHV', long: 'Pushrod cam-in-block' },
+  { id: 'sohc', label: 'SOHC', long: 'Single overhead cam' },
+  { id: 'dohc', label: 'DOHC', long: 'Dual overhead cams' },
+];
+const CYLINDER_OPTIONS = [4, 5, 6, 8, 10, 12];
 
 function Slider({ label, value, min, max, step, unit, onChange, fmt }) {
   return (
@@ -132,6 +138,41 @@ export default function EngineDesigner() {
             label="Compression" value={spec.compression} min={lim.comp[0]} max={lim.comp[1]} step={0.1}
             unit=":1" onChange={(v) => set({ compression: v })} fmt={(v) => v.toFixed(1)}
           />
+        </div>
+
+        {/* Cylinder count */}
+        <div className="design-section">
+          <div className="design-label">Cylinders</div>
+          <div className="design-cylinders">
+            {CYLINDER_OPTIONS.map((n) => (
+              <button
+                key={n}
+                className={`design-cyl-btn ${spec.cylinders === n ? 'sel' : ''}`}
+                onClick={() => set({ cylinders: n })}
+                title={`${n}-cylinder engine`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <div className="design-hint">Cylinder count + 3D model follow the platform; displacement updates live.</div>
+        </div>
+
+        {/* Architecture */}
+        <div className="design-section">
+          <div className="design-label">Architecture</div>
+          <div className="design-induction">
+            {ARCHITECTURES.map((a) => (
+              <button
+                key={a.id}
+                className={`design-ind ${spec.arch === a.id ? 'sel' : ''}`}
+                onClick={() => set({ arch: a.id })}
+                title={a.long}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Induction */}

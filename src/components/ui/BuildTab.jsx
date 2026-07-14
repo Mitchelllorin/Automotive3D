@@ -34,7 +34,7 @@ const oemOf = (products, cat) => {
 
 // The order parts are presented in — biggest power/durability levers first.
 const BUILD_ORDER = [
-  'engine_block', 'cylinder_head', 'camshaft', 'intake_manifold', 'carburetor',
+  'engine_block', 'cylinder_head', 'camshaft', 'intake_manifold', 'carburetor', 'throttle_body',
   'air_cleaner', 'exhaust_manifold', 'water_pump', 'cooling_fan', 'thermostat',
   'distributor', 'spark_plugs', 'alternator', 'drive_belt', 'fuel_pump',
   'oil_filter', 'valve_cover',

@@ -3314,6 +3314,29 @@ body {
   color: #f0f6fc;
 }
 
+.design-cylinders {
+  display: flex;
+  gap: 0.35rem;
+}
+.design-cyl-btn {
+  flex: 1;
+  padding: 0.38rem 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  background: #0d1117;
+  color: #adbac7;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.design-cyl-btn:hover { border-color: #58a6ff; }
+.design-cyl-btn.sel {
+  border-color: #f0883e;
+  background: rgba(240, 136, 62, 0.14);
+  color: #f0f6fc;
+}
+
 .design-fuse .build-advise { font-size: 0.68rem; }
 
 .design-save {
