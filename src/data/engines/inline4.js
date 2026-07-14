@@ -8,7 +8,7 @@
  * self-contained (I4_PRODUCTS) so swapping a part on the four never shows a V8 part
  * and vice-versa — the dyno, builder and arena all read whichever engine is active.
  */
-const buy = (q) => `https://www.summitracing.com/search?keyword=${encodeURIComponent(q)}`;
+const buy = (q) => `https://www.rockauto.com/en/catalog/?partfilter=${encodeURIComponent(q)}`;
 
 const BORE_IN = 3.386; // 86 mm
 const STROKE_IN = 3.386; // 86 mm — a square 2.0

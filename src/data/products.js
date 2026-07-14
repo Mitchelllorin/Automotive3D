@@ -17,8 +17,8 @@
  * in here (or local /public paths) and they take over automatically.
  */
 
-/** Build a retailer search URL so every Buy link resolves to a real listing. */
-const buy = (q) => `https://www.summitracing.com/search?keyword=${encodeURIComponent(q)}`;
+/** Build a RockAuto search URL so every Buy link resolves to a real listing. */
+const buy = (q) => `https://www.rockauto.com/en/catalog/?partfilter=${encodeURIComponent(q)}`;
 
 export const PRODUCTS = {
   valve_cover: {

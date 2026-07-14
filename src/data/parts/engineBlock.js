@@ -14,7 +14,7 @@
  */
 import { registerCategory, importParts } from '../catalog';
 
-const buy = (q) => `https://www.summitracing.com/search?keyword=${encodeURIComponent(q)}`;
+const buy = (q) => `https://www.rockauto.com/en/catalog/?partfilter=${encodeURIComponent(q)}`;
 
 registerCategory('engine_block', 'Engine Block');
 
