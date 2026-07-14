@@ -33,6 +33,7 @@ import { SUBSYSTEMS } from '../../data/subsystems';
 import ArenaStage from './ArenaStage';
 import { RIVALS } from '../../lib/battle';
 import { GeomContext, engineGeom } from '../../lib/engineInstance';
+import DynoReadout, { DynoMetricsStrip } from '../ui/DynoReadout';
 
 // Phones/tablets get a lighter render pipeline so the 3D stays smooth: capped
 // pixel ratio and cheaper ambient occlusion instead of full-res 2× + medium AO.
@@ -690,8 +691,13 @@ export default function VehicleScene() {
         >
           {peek ? '👁 Revealing…' : '👁 Hold to reveal'}
         </button>
+        <DynoReadout />
       </div>
       )}
+
+      {/* Dyno secondary metrics — float as bare text so they never add to the
+          panel height or block the 3D logo. Only shown when the panel is open. */}
+      {!arenaActive && !controlsCollapsed && <DynoMetricsStrip />}
 
       {/* Bottom explode/teardown slider — kept in the arena so you can tear both
           engines open and watch the internals fail mid-battle. */}

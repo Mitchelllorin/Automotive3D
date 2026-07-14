@@ -16,6 +16,48 @@ import { computeDyno, outputAtRpm, dynoMetrics, buildCost } from '../../lib/dyno
 import { simState } from '../../lib/simState';
 import { getEngine } from '../../data/engines';
 
+/**
+ * DynoMetricsStrip — the six secondary dyno stats rendered as bare floating text,
+ * outside any container box.  Lives as an absolutely-positioned overlay in the
+ * scene so it never adds to the engine-control panel height.
+ */
+export function DynoMetricsStrip() {
+  const partVariants = useAppStore((s) => s.partVariants);
+  const engine = getEngine(useAppStore((s) => s.activeEngineId));
+  const dyno = useMemo(() => computeDyno(partVariants, undefined, engine), [partVariants, engine]);
+  const metrics = useMemo(() => dynoMetrics(dyno, engine), [dyno, engine]);
+  const cost = useMemo(() => buildCost(partVariants, engine), [partVariants, engine]);
+
+  return (
+    <div className="dyno-metrics-float">
+      <span className="dmf-item">
+        <i className="dmf-label">spec output</i>
+        <b className="dmf-value">{metrics.hpPerL.toFixed(0)} hp/L</b>
+      </span>
+      <span className="dmf-item">
+        <i className="dmf-label">BMEP</i>
+        <b className="dmf-value">{Math.round(metrics.bmep)} psi</b>
+      </span>
+      <span className={`dmf-item${metrics.pistonSpeed > 4000 ? ' hot' : ''}`}>
+        <i className="dmf-label">piston speed</i>
+        <b className="dmf-value">{Math.round(metrics.pistonSpeed).toLocaleString()} ft/min</b>
+      </span>
+      <span className="dmf-item">
+        <i className="dmf-label">power-to-wt</i>
+        <b className="dmf-value">{metrics.lbPerHp.toFixed(1)} lb/hp</b>
+      </span>
+      <span className="dmf-item">
+        <i className="dmf-label">power band</i>
+        <b className="dmf-value">{metrics.band.lo.toLocaleString()}–{metrics.band.hi.toLocaleString()}</b>
+      </span>
+      <span className="dmf-item">
+        <i className="dmf-label">build cost</i>
+        <b className="dmf-value">${Math.round(cost).toLocaleString()}</b>
+      </span>
+    </div>
+  );
+}
+
 const W = 232; // svg viewbox
 const H = 78;
 const PAD = 4;
@@ -74,9 +116,6 @@ export default function DynoReadout() {
   const markerX =
     rpm > rpm0 ? x0 + ((Math.min(rpm, dyno.redline) - rpm0) / rpmSpan) * xSpan : null;
 
-  const metrics = useMemo(() => dynoMetrics(dyno, engine), [dyno, engine]);
-  const cost = useMemo(() => buildCost(partVariants, engine), [partVariants, engine]);
-
   return (
     <div className="dyno-readout">
       <div className="dyno-head">
@@ -114,17 +153,6 @@ export default function DynoReadout() {
         ) : (
           <span className="dyno-live-off">start the engine to read live power</span>
         )}
-      </div>
-
-      <div className="dyno-metrics">
-        <span><i>spec output</i><b>{metrics.hpPerL.toFixed(0)}</b> hp/L</span>
-        <span><i>BMEP</i><b>{Math.round(metrics.bmep)}</b> psi</span>
-        <span className={metrics.pistonSpeed > 4000 ? 'hot' : ''}>
-          <i>piston speed</i><b>{Math.round(metrics.pistonSpeed).toLocaleString()}</b> ft/min
-        </span>
-        <span><i>power-to-wt</i><b>{metrics.lbPerHp.toFixed(1)}</b> lb/hp</span>
-        <span><i>power band</i><b>{metrics.band.lo.toLocaleString()}–{metrics.band.hi.toLocaleString()}</b></span>
-        <span><i>build cost</i><b>${Math.round(cost).toLocaleString()}</b></span>
       </div>
     </div>
   );
