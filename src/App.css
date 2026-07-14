@@ -1017,25 +1017,21 @@ body {
 /* ── Engine run controls ──────────────────────────────────────────────────── */
 .engine-control {
   position: absolute;
-  top: 3.4rem; /* clears the floating logo above it */
+  top: 10%; /* clears the in-scene 3D logo at all canvas heights (~7 % from top) */
   left: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
   background: rgba(13, 17, 23, 0.9);
   border: 1px solid #30363d;
   border-radius: 12px;
-  padding: 0.6rem 0.75rem;
+  padding: 0.45rem 0.6rem;
   backdrop-filter: blur(6px);
   z-index: 6;
-  width: 288px;
-  /* The panel carries a lot (controls + dyno + 6 metrics) — cap it to the visible
-     height and scroll inside so it never collides with the header or anything else
-     when zoomed in or on a short viewport. Scrollbar hidden — the content just
-     scrolls, no visible bar. */
-  /* Leave room at the bottom for the explode bar so the panel never sits on top
-     of it (it's the same column on a short landscape phone). */
-  max-height: calc(100% - 3.6rem);
+  width: 272px;
+  /* Cap to visible height above the explode bar; the panel scrolls internally
+     so the dyno graph never gets pushed off-screen. */
+  max-height: calc(90% - 4rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -1044,14 +1040,13 @@ body {
 }
 .engine-control::-webkit-scrollbar { display: none; }
 
-/* Short (landscape-phone) viewports: keep the engine panel compact so it doesn't
-   dominate the screen or overlap the explode/teardown bar at the bottom. */
+/* Short (landscape-phone) viewports: keep the engine panel compact. */
 @media (max-height: 540px) {
   .engine-control {
     width: 188px;
-    max-height: calc(100% - 4.6rem);
-    gap: 0.35rem;
-    padding: 0.45rem 0.5rem;
+    max-height: calc(90% - 4.6rem);
+    gap: 0.3rem;
+    padding: 0.35rem 0.45rem;
   }
   .dyno-graph { height: 50px; }
 }
@@ -1086,7 +1081,7 @@ body {
 
 .engine-expand-chip {
   position: absolute;
-  top: 3.4rem; /* same anchor the panel uses, clears the header/logo */
+  top: 10%; /* matches the panel anchor so the chip appears in the same spot */
   left: 1.25rem;
   z-index: 6;
   cursor: pointer;
@@ -1227,21 +1222,23 @@ body {
 @media (max-width: 640px) {
   .engine-control {
     width: 186px;
-    top: 3.1rem; /* clears the floating logo */
+    /* top: 10% from the default rule already clears the logo on mobile */
     left: 0.5rem;
-    /* Cap the height so the taller dyno/metrics stack scrolls inside the panel
-       instead of overlapping the explode slider at the bottom of the screen. */
-    max-height: calc(96vh - 3.1rem);
+    max-height: calc(90% - 4rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    gap: 0.4rem;
-    padding: 0.5rem 0.55rem;
+    gap: 0.35rem;
+    padding: 0.4rem 0.5rem;
+  }
+  .engine-expand-chip {
+    left: 0.5rem;
+  }
+  .dyno-metrics-float {
+    left: 0.5rem;
+    max-width: 186px;
   }
   .dyno-graph {
     height: 58px;
-  }
-  .dyno-metrics {
-    grid-template-columns: 1fr 1fr;
   }
   .dyno-peak b {
     font-size: 0.95rem;
@@ -1811,7 +1808,52 @@ body {
   color: #f0883e;
 }
 
-/* ── Battle Arena ─────────────────────────────────────────────────────── */
+/* ── Floating dyno metrics strip (scene overlay) ──────────────────────────── */
+/* These secondary stats live OUTSIDE the engine-control panel so they don't
+   add to the panel height or block the 3D logo.  No container border or
+   background — just readable text that floats over the scene. */
+.dyno-metrics-float {
+  position: absolute;
+  bottom: 3.4rem; /* above the explode bar */
+  left: 1.25rem;
+  pointer-events: none;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  max-width: 288px;
+}
+
+.dmf-item {
+  display: flex;
+  flex-direction: column;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.dmf-label {
+  font-style: normal;
+  font-size: 0.52rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(110, 118, 129, 0.9);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.dmf-value {
+  font-style: normal;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #e6edf3;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
+}
+
+.dmf-item.hot .dmf-value {
+  color: #f0883e;
+}
+
+
 .arena-tab {
   display: flex;
   flex-direction: column;
