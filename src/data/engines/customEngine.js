@@ -26,10 +26,14 @@ export function displacementOf(boreIn, strokeIn, cylinders) {
 /**
  * Realism guardrails per base platform — the envelope a pro would call sane for the
  * block (max safe overbore, stroke a balanced rotating assembly clears, pump-to-race
- * compression). Keyed by the base package's assemblyId; a sensible default covers
- * anything new. The mechanic judges these, so they're deliberately conservative.
+ * compression). Checked first by engine id (fine-grained per-motor), then by
+ * assemblyId (platform-family fallback). A sensible default covers anything new.
  */
 const DESIGN_LIMITS = {
+  // Per-engine id overrides (checked first)
+  bbc454: { bore: [4.0, 4.5], stroke: [3.5, 4.5], comp: [7.5, 13.5] }, // Big-Block Chevy
+  ls53:   { bore: [3.78, 4.15], stroke: [3.25, 4.1], comp: [8.0, 13.5] }, // GM LS 5.3
+  // Per-assemblyId fallbacks
   engine: { bore: [3.875, 4.165], stroke: [3.0, 4.0], comp: [7.5, 13.5] }, // Small-Block Chevy V8
   inline4: { bore: [3.1, 3.5], stroke: [3.0, 3.8], comp: [7.5, 12.0] }, // 2.0L four
 };
@@ -37,7 +41,7 @@ const DEFAULT_LIMITS = { bore: [3.0, 4.3], stroke: [2.8, 4.2], comp: [7.0, 14.0]
 
 export function designLimits(baseEngineId) {
   const base = getEngine(baseEngineId);
-  return DESIGN_LIMITS[base.assemblyId] || DEFAULT_LIMITS;
+  return DESIGN_LIMITS[base.id] || DESIGN_LIMITS[base.assemblyId] || DEFAULT_LIMITS;
 }
 
 /** The platforms a custom motor can be built on — the roster's real, drawn engines. */
@@ -46,6 +50,7 @@ export function basePlatforms() {
   return engineList().filter((e) => e.available && !e.custom);
 }
 
+const ARCH_LABEL = { ohv: 'OHV', sohc: 'SOHC', dohc: 'DOHC' };
 const INDUCTION_LABEL = { na: 'Naturally Aspirated', turbo: 'Turbocharged', super: 'Supercharged' };
 const INDUCTION_BADGE = { na: 'NA', turbo: 'Turbo', super: 'Supercharged' };
 
@@ -59,7 +64,8 @@ export function defaultSpec(baseEngineId) {
     baseEngineId: base.id,
     boreIn: base.boreIn,
     strokeIn: base.strokeIn,
-    cylinders: base.cylinders,
+    cylinders: base.cylinders, // exposed in the designer: 4 / 5 / 6 / 8 / 10 / 12
+    arch: base.arch || 'ohv',  // architecture selector: 'ohv' | 'sohc' | 'dohc'
     compression: Math.min(Math.max(9.5, lim.comp[0]), lim.comp[1]),
     induction: 'na',
     boostPsi: 0,
@@ -81,6 +87,7 @@ export function makeCustomEngine(spec) {
   const compression = clamp(spec.compression ?? 9.5, lim.comp[0], lim.comp[1]);
   const induction = spec.induction ?? 'na';
   const boostPsi = induction === 'na' ? 0 : Math.max(0, spec.boostPsi ?? 0);
+  const arch = spec.arch ?? base.arch ?? 'ohv';
   const disp = displacementOf(boreIn, strokeIn, cyl);
   const name = (spec.name || '').trim() || `Custom ${Math.round(disp)} ci`;
 
@@ -91,9 +98,10 @@ export function makeCustomEngine(spec) {
     id: spec.id || 'custom:draft',
     name,
     shortName: name.length <= 13 ? name : `${Math.round(disp)} ci`,
-    badge: `${base.badge.split(' · ')[0]} · ${INDUCTION_BADGE[induction]} · Custom`,
+    badge: `${cyl}-cyl · ${ARCH_LABEL[arch] ?? arch.toUpperCase()} · ${INDUCTION_BADGE[induction]} · Custom`,
     available: true,
     custom: true,
+    arch,
     baseEngineId: base.id,
     assemblyId: base.assemblyId,
     boreIn,
@@ -104,7 +112,7 @@ export function makeCustomEngine(spec) {
     induction,
     inductionLabel: INDUCTION_LABEL[induction],
     boostPsi,
-    spec: { ...spec, boreIn, strokeIn, compression, induction, boostPsi, cylinders: cyl },
+    spec: { ...spec, boreIn, strokeIn, compression, induction, boostPsi, cylinders: cyl, arch },
   };
 }
 
@@ -159,10 +167,10 @@ export function deleteCustomEngine(id) {
 // sandboxes): hash the defining parameters. Two identical specs collapse to one,
 // which is fine — they describe the same motor.
 function specStamp(spec) {
-  const key = `${spec.baseEngineId}|${spec.boreIn}|${spec.strokeIn}|${spec.compression}|${spec.induction}|${spec.boostPsi}|${spec.name}`;
+  const key = `${spec.baseEngineId}|${spec.boreIn}|${spec.strokeIn}|${spec.compression}|${spec.induction}|${spec.boostPsi}|${spec.cylinders}|${spec.arch}|${spec.name}`;
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
 
-export { INDUCTION_LABEL, INDUCTION_BADGE };
+export { ARCH_LABEL, INDUCTION_LABEL, INDUCTION_BADGE };
